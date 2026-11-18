@@ -31,7 +31,7 @@ async function sendEmail(to: string, code: string) {
       to: [to],
       subject: "کد ورود به MISS DOOD",
       text: `کد ورود شما: ${code}\nاین کد تا ۱۰ دقیقه معتبر است و فقط یک بار قابل استفاده است. اگر شما درخواست نداده‌اید، این پیام را نادیده بگیرید.`,
-      html: `<div dir="rtl" style="font-family:Tahoma,Arial,sans-serif;background:#0e1b2b;color:#fff;padding:32px;border-radius:16px;text-align:center"><h2>کد ورود به MISS DOOD</h2><p style="color:#b8cce5">برای ورود، کد زیر را در سایت وارد کنید.</p><div style="display:inline-block;background:#07111e;border:1px solid #087bc8;border-radius:12px;padding:18px 28px;font-size:32px;letter-spacing:10px;font-weight:bold;color:#fff">${code}</div><p style="color:#b8cce5">این کد تا ۱۰ دقیقه معتبر است و فقط یک‌بار قابل استفاده است.</p></div>`,
+      html: `<div dir="rtl" style="font-family:Tahoma,Arial,sans-serif;background:#11100d;color:#f5efe2;padding:32px;border:1px solid #806638;border-radius:18px;text-align:center"><h2>کد ورود به MISS DOOD</h2><p style="color:#c7b895">برای ورود، کد زیر را در سایت وارد کنید.</p><div style="display:inline-block;background:#090806;border:1px solid #b08b4b;border-radius:12px;padding:18px 28px;font-size:32px;letter-spacing:10px;font-weight:bold;color:#f0d8a7">${code}</div><p style="color:#c7b895">این کد تا ۱۰ دقیقه معتبر است و فقط یک‌بار قابل استفاده است.</p></div>`,
     }),
     cache: "no-store",
   });
