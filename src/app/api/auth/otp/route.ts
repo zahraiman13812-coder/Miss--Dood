@@ -73,8 +73,8 @@ export async function POST(request: NextRequest) {
         );
         const row = current.rows[0];
         if (!row) throw new Error("OTP_STORAGE_FAILED");
-        // A newly-created challenge has send_count=0 and must be allowed to send immediately.
-        // Apply the 60-second resend cooldown only after at least one send was attempted.
+        // New challenges start with send_count=0 and last_sent_at=now().
+        // Do not apply the resend cooldown until an email has actually been sent.
         if (row.send_count > 0 && Date.now() - new Date(row.last_sent_at).getTime() < 60_000) {
           throw new Error("OTP_COOLDOWN");
         }
