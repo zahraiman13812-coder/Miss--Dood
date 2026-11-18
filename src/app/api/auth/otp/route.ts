@@ -73,7 +73,11 @@ export async function POST(request: NextRequest) {
         );
         const row = current.rows[0];
         if (!row) throw new Error("OTP_STORAGE_FAILED");
-        if (Date.now() - new Date(row.last_sent_at).getTime() < 60_000) throw new Error("OTP_COOLDOWN");
+        // A newly-created challenge has send_count=0 and must be allowed to send immediately.
+        // Apply the 60-second resend cooldown only after at least one send was attempted.
+        if (row.send_count > 0 && Date.now() - new Date(row.last_sent_at).getTime() < 60_000) {
+          throw new Error("OTP_COOLDOWN");
+        }
         const windowActive = Date.now() - new Date(row.send_window_started_at).getTime() < 24 * 60 * 60 * 1000;
         if (windowActive && row.send_count >= 8) throw new Error("OTP_DAILY_LIMIT");
         await client.query(
