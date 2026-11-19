@@ -7,6 +7,7 @@ import { ShippingAmount } from "@/features/store/Shipping";
 import { useCart, changeQuantity } from "@/features/cart/useCart";
 import { summarizeCart } from "@/features/cart/cartSummary";
 import { productPrice } from "@/data/mock/latestProducts";
+import { updateStore } from "@/features/store/store";
 const field="mt-2 w-full rounded-xl border border-line bg-header px-4 py-3 text-content";
 export default function CheckoutPage(){
  const cart=useCart(), {shipping,city,catalogStatus}=useStore(), rule=shipping.find(s=>s.city===city);
@@ -14,6 +15,22 @@ export default function CheckoutPage(){
  const requestId=useRef<string | null>(null);
  const lock=useRef(false),[busy,setBusy]=useState(false),[error,setError]=useState(""),[receipt,setReceipt]=useState(""),[review,setReview]=useState(false);
  const [recipient,setRecipient]=useState({name:"",phone:"",address:""});
+ const [savedAddresses,setSavedAddresses]=useState<{id:string;title:string;recipient_name:string;phone:string;city:string;address:string}[]>([]);
+ useEffect(()=>{
+  let active=true;
+  fetch("/api/account/addresses",{cache:"no-store"}).then(async r=>r.ok?r.json():null)
+   .then(data=>{if(active&&Array.isArray(data?.addresses))setSavedAddresses(data.addresses);})
+   .catch(()=>{});
+  return()=>{active=false;};
+ },[]);
+ function applySavedAddress(id:string){
+   const saved=savedAddresses.find(a=>a.id===id);
+   if(!saved)return;
+   const available=shipping.some(r=>r.city===saved.city);
+   if(!available){setError("شهر آدرس انتخابی در فهرست شهرهای قابل ارسال نیست. شهر ارسال را از سبد خرید انتخاب کنید.");return;}
+   setError("");setRecipient({name:saved.recipient_name,phone:saved.phone,address:saved.address});
+   updateStore(current=>({...current,city:saved.city}));
+ }
  // Preserve the key for network retries but replace it whenever checkout contents change.
  const signature=JSON.stringify({recipient,city,items:lines.map(l=>[l.product.slug,l.quantity])});
  const previousSignature=useRef(signature);
@@ -28,6 +45,10 @@ export default function CheckoutPage(){
  return <main className="mx-auto w-full max-w-2xl space-y-5 px-4 py-8"><Link href="/cart" className="text-sm text-accent">بازگشت به سبد خرید</Link><PurchaseSteps current={review?2:1}/><h1 className="text-2xl font-bold">{review?"مرور سفارش":"مشخصات گیرنده"}</h1>
  {catalogStatus !== "ready" ? <p role="status">{catalogStatus === "loading" ? "در حال دریافت اطلاعات فروشگاه…" : "ارتباط با فروشگاه برقرار نشد. لطفاً بعداً دوباره تلاش کنید."}</p> : !count||stockIssue||!rule||total===null?<p>سبد خرید یا شهر ارسال را بررسی کنید. <Link href="/cart" className="text-accent">بازگشت</Link></p>:
  review?<section className="space-y-4 rounded-2xl border border-line bg-panel p-4 sm:p-6"><b>{recipient.name}</b><p>{recipient.phone}</p><p>{recipient.address}</p><ul className="divide-y divide-line">{lines.map(l=><li className="flex flex-wrap justify-between gap-3 py-2" key={l.product.slug}><span>{l.product.name} × {l.quantity}</span><span>{productPrice(l.amount)}</span></li>)}</ul><ShippingAmount rule={rule} subtotal={total}/><p>پرداخت اینترنتی غیرفعال است؛ سفارش با وضعیت «دریافت شده» ثبت می‌شود.</p><p role="alert" className="text-red-500">{error}</p><button disabled={busy} onClick={submitOrder} className="w-full rounded-xl bg-accent py-3 font-bold text-on-accent">{busy?"در حال ثبت...":"ثبت قطعی سفارش"}</button><button type="button" onClick={()=>setReview(false)} className="rounded-xl border border-line px-4 py-3">ویرایش مشخصات</button></section>:
- <form className="space-y-4 rounded-2xl border border-line bg-panel p-4 sm:p-6" onSubmit={e=>{e.preventDefault();setReview(true);}}><ShippingAmount rule={rule} subtotal={total}/><label className="block">نام گیرنده<input required maxLength={120} autoComplete="name" className={field} value={recipient.name} onChange={e=>setRecipient({...recipient,name:e.target.value})}/></label><label className="block">شماره تماس<input required dir="ltr" type="tel" inputMode="tel" autoComplete="tel" pattern="[+0-9۰-۹٠-٩ \-]{8,22}" maxLength={22} className={field} value={recipient.phone} onChange={e=>setRecipient({...recipient,phone:e.target.value})}/></label><label className="block">آدرس<textarea required minLength={6} maxLength={1000} autoComplete="street-address" rows={3} className={field} value={recipient.address} onChange={e=>setRecipient({...recipient,address:e.target.value})}/></label><Link className="text-sm text-accent" href="/login">اگر حساب ندارید، پیش از نهایی کردن سفارش ثبت‌نام کنید.</Link><button className="w-full rounded-xl bg-accent py-3 font-bold text-on-accent">مرور سفارش</button></form>}
+ <form className="space-y-4 rounded-2xl border border-line bg-panel p-4 sm:p-6" onSubmit={e=>{e.preventDefault();setReview(true);}}>
+ {savedAddresses.length>0&&<label className="block">انتخاب آدرس ذخیره‌شده
+   <select className={field} defaultValue="" onChange={e=>applySavedAddress(e.target.value)}><option value="">ورود دستی یا انتخاب از آدرس‌ها</option>{savedAddresses.map(a=><option key={a.id} value={a.id}>{a.title} · {a.city}</option>)}</select>
+ </label>}
+ <ShippingAmount rule={rule} subtotal={total}/><label className="block">نام گیرنده<input required maxLength={120} autoComplete="name" className={field} value={recipient.name} onChange={e=>setRecipient({...recipient,name:e.target.value})}/></label><label className="block">شماره تماس<input required dir="ltr" type="tel" inputMode="tel" autoComplete="tel" pattern="[+0-9۰-۹٠-٩ \-]{8,22}" maxLength={22} className={field} value={recipient.phone} onChange={e=>setRecipient({...recipient,phone:e.target.value})}/></label><label className="block">آدرس<textarea required minLength={6} maxLength={1000} autoComplete="street-address" rows={3} className={field} value={recipient.address} onChange={e=>setRecipient({...recipient,address:e.target.value})}/></label><p role="alert" className="text-sm text-red-500">{error}</p><Link className="text-sm text-accent" href="/login">اگر حساب ندارید، پیش از نهایی کردن سفارش ثبت‌نام کنید.</Link><button className="w-full rounded-xl bg-accent py-3 font-bold text-on-accent">مرور سفارش</button></form>}
  </main>;
 }

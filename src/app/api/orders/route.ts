@@ -4,13 +4,19 @@ import { db, transaction } from "@/lib/db";
 import { bad, errorResponse, noStore, sameOrigin } from "@/lib/http";
 export const runtime="nodejs";
 class OrderError extends Error {constructor(public code:string){super(code);}}
-export async function GET() {try {
+export async function GET(req: NextRequest) {try {
  const user=await currentUser(); if(!user)return bad("AUTH_REQUIRED",401);
+ const pageValue=Number(req.nextUrl.searchParams.get("page") ?? "1");
+ const sizeValue=Number(req.nextUrl.searchParams.get("pageSize") ?? "100");
+ const page=Number.isSafeInteger(pageValue)?Math.max(1,Math.min(pageValue,10000)):1;
+ const pageSize=Number.isSafeInteger(sizeValue)?Math.max(1,Math.min(sizeValue,100)):100;
+ const offset=(page-1)*pageSize;
+ const countResult=await db().query<{count:number}>("SELECT count(*)::int AS count FROM orders WHERE user_id=$1",[user.id]);
  const result=await db().query(`SELECT o.id,o.status,o.created_at AS date,o.subtotal::float8 AS subtotal,o.total::float8 AS total,
  json_build_object('city',o.shipping_city,'fee',o.shipping_fee::float8,'days','') AS shipping,
  COALESCE((SELECT json_agg(json_build_object('name',i.product_name,'quantity',i.quantity,'amount',i.amount::float8)) FROM order_items i WHERE i.order_id=o.id),'[]'::json) AS items
- FROM orders o WHERE o.user_id=$1 ORDER BY o.created_at DESC LIMIT 100`,[user.id]);
- return NextResponse.json({orders:result.rows},{headers:noStore});
+ FROM orders o WHERE o.user_id=$1 ORDER BY o.created_at DESC,o.id DESC LIMIT $2 OFFSET $3`,[user.id,pageSize,offset]);
+ return NextResponse.json({orders:result.rows,pagination:{page,pageSize,total:countResult.rows[0]?.count??0}},{headers:noStore});
 } catch(e){return errorResponse(e);} }
 export async function POST(req:NextRequest) {try {
  if(!sameOrigin(req))return bad("CROSS_ORIGIN",403);
@@ -37,7 +43,7 @@ export async function POST(req:NextRequest) {try {
   const previous=await client.query<{id:string}>("SELECT id FROM orders WHERE user_id=$1 AND idempotency_key=$2",[user.id,key]);
   if(previous.rows[0])return previous.rows[0].id;
   if(rows.rows.length!==items.length)throw new OrderError("PRODUCT_UNAVAILABLE");
-  let subtotal=0;const lines:{slug:string;quantity:number;name:string;price:number;amount:number}[]=[];
+  let subtotal=0;const lines=[];
   for(const item of items){const product=rows.rows.find(p=>p.slug===item.slug)!;
    if(product.price_toman===null)throw new OrderError("PRICE_UNAVAILABLE");
    if(product.stock<item.quantity)throw new OrderError("INSUFFICIENT_STOCK");

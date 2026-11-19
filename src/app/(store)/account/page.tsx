@@ -1,328 +1,202 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import {
-  ArrowLeft, Clock3, CreditCard, Heart, LifeBuoy, LogOut, Mail, MapPin,
-  Package, RefreshCw, ShieldCheck, Sparkles, Ticket, Truck, User2
-} from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, ClipboardList, Download, Heart, Home, LogOut, MapPin, Package,
+  Pencil, Plus, RefreshCw, Save, ShieldCheck, Sparkles, Trash2, UserRound, X } from "lucide-react";
+import type { Product } from "@/data/mock/latestProducts";
+import ProductCard from "@/features/catalog/ProductCard";
 
-type User = { id: string; email: string; full_name: string; role: string };
-type OrderItem = { name: string; quantity: number; amount: number };
-type Order = {
-  id: string;
-  status: string;
-  date: string;
-  subtotal: number;
-  total: number;
-  shipping?: { city?: string; fee?: number; days?: string };
-  items?: OrderItem[];
-};
-type TicketInfo = { id: string; subject: string; status: "open" | "closed" | "answered"; created_at: string; messages?: unknown[] };
-
-const panel =
-  "rounded-[28px] border border-[#7e6538]/60 bg-gradient-to-br from-[#16130f] via-[#0f0d0a] to-[#0a0907] shadow-[0_18px_45px_rgba(0,0,0,.35)]";
-const soft =
-  "rounded-2xl border border-[#56462a]/75 bg-[#0d0b09]/85 text-[#f3e8cf] shadow-[inset_0_1px_0_rgba(255,255,255,.03)]";
-const gold =
-  "text-[#e6c47b]";
-const muted = "text-[#b7a98b]";
-const statusMap: Record<string, { label: string; tone: string; icon: typeof Clock3 }> = {
-  received: { label: "دریافت شد", tone: "bg-[#503c16]/45 text-[#f5d487] border-[#a27f3e]/50", icon: Clock3 },
-  processing: { label: "در حال پردازش", tone: "bg-[#3d2f10]/45 text-[#f4d186] border-[#9a7a39]/50", icon: RefreshCw },
-  shipped: { label: "ارسال شده", tone: "bg-[#15304d]/45 text-[#92c2ff] border-[#2e5d92]/50", icon: Truck },
-  delivered: { label: "تحویل شده", tone: "bg-[#18341e]/45 text-[#9ee2a4] border-[#2b7240]/50", icon: ShieldCheck },
-  cancelled: { label: "لغو شده", tone: "bg-[#421b1b]/45 text-[#f0aaaa] border-[#814040]/50", icon: Ticket },
-  open: { label: "باز", tone: "bg-[#503c16]/45 text-[#f5d487] border-[#a27f3e]/50", icon: Ticket },
-  answered: { label: "پاسخ داده شد", tone: "bg-[#17311b]/45 text-[#a7e0b2] border-[#2b7240]/50", icon: LifeBuoy },
-  closed: { label: "بسته", tone: "bg-[#1f2430]/55 text-[#c6d0e1] border-[#4c566b]/55", icon: Ticket },
-};
-function fmtMoney(value: number | undefined) {
-  return typeof value === "number"
-    ? `${value.toLocaleString("fa-IR")} تومان`
-    : "—";
+type Tab = "overview" | "addresses" | "orders" | "profile" | "recommended";
+type Profile = { id: string; full_name: string; email: string; phone: string };
+type Address = { id: string; title: string; recipient_name: string; phone: string; city: string; address: string; postal_code: string; is_default: boolean };
+type Order = { id: string; status: string; date: string; subtotal: number; total: number; shipping?: {city?:string;fee?:number}; items: {name:string;quantity:number;amount:number}[] };
+type AddressDraft = Omit<Address,"id">;
+const emptyAddress: AddressDraft = {title:"خانه",recipient_name:"",phone:"",city:"",address:"",postal_code:"",is_default:false};
+const money = (price: number) => `${price.toLocaleString("fa-IR")} تومان`;
+const panel = "rounded-[26px] border border-[#705a31]/65 bg-[#14110d] p-5 shadow-[0_12px_40px_rgba(0,0,0,.25)] sm:p-7";
+const field = "mt-2 min-h-12 w-full rounded-xl border border-[#786039] bg-[#090807] px-4 py-3 text-[#f7edda] outline-none placeholder:text-[#9d9077] focus:border-[#e0be7b] focus:ring-2 focus:ring-[#e0be7b]/20";
+const goldButton = "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#e3c47f] bg-gradient-to-b from-[#d4b06c] to-[#a27a3d] px-5 py-2 font-black text-[#171109] transition hover:brightness-110 disabled:opacity-50";
+const outlineButton = "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[#786039] bg-[#211b12] px-4 py-2 text-sm font-bold text-[#e5c480] transition hover:border-[#d5b36e] disabled:opacity-50";
+const tabs: {id:Tab;label:string;icon:typeof Home}[] = [
+  {id:"overview",label:"پیشخوان",icon:Home}, {id:"orders",label:"سفارش‌ها و فاکتورها",icon:Package},
+  {id:"addresses",label:"آدرس‌های من",icon:MapPin}, {id:"profile",label:"ویرایش پروفایل",icon:UserRound},
+  {id:"recommended",label:"پیشنهادهای شما",icon:Heart},
+];
+const statuses: Record<string,string> = { received:"ثبت شده",processing:"در حال آماده‌سازی",shipped:"ارسال شده",delivered:"تحویل شده",cancelled:"لغو شده" };
+async function jsonFetch<T>(url:string, init?:RequestInit):Promise<T> {
+  const response = await fetch(url,{cache:"no-store",...init});
+  const data = await response.json().catch(()=>({error:"NETWORK_ERROR"}));
+  if(!response.ok) throw Error(data.error === "AUTH_REQUIRED" ? "ابتدا وارد حساب شوید." : data.error ?? "درخواست ناموفق بود.");
+  return data as T;
 }
-function fmtDate(value: string | undefined) {
-  if (!value) return "—";
-  return new Date(value).toLocaleDateString("fa-IR", { year: "numeric", month: "long", day: "numeric" });
-}
-function statusBadge(status: string) {
-  const current = statusMap[status] ?? { label: status, tone: "bg-black/25 text-[#eadcc0] border-[#705d36]/55", icon: Clock3 };
-  const Icon = current.icon;
-  return (
-    <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-bold ${current.tone}`}>
-      <Icon size={14} />
-      {current.label}
-    </span>
-  );
-}
-function StatCard({
-  title, value, hint, icon: Icon,
-}: { title: string; value: string; hint: string; icon: typeof Package }) {
-  return (
-    <div className={`${soft} p-4 sm:p-5`}>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className={`text-xs font-bold tracking-[.18em] ${gold}`}>{title}</p>
-          <p className="mt-2 text-2xl font-black text-[#f7efdf] sm:text-[28px]">{value}</p>
-          <p className={`mt-2 text-xs leading-6 ${muted}`}>{hint}</p>
-        </div>
-        <span className="grid size-11 place-items-center rounded-2xl border border-[#7e6538]/60 bg-[#d2a961]/12 text-[#e6c47b]">
-          <Icon size={20} />
-        </span>
-      </div>
-    </div>
-  );
-}
-
 export default function AccountPage() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [favorites, setFavorites] = useState<string[]>([]);
-  const [tickets, setTickets] = useState<TicketInfo[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState("");
+  const [tab,setTab] = useState<Tab>("overview");
+  const [profile,setProfile] = useState<Profile|null>(null);
+  const [formProfile,setFormProfile] = useState({fullName:"",phone:""});
+  const [addresses,setAddresses] = useState<Address[]>([]);
+  const [addressForm,setAddressForm] = useState<AddressDraft>(emptyAddress);
+  const [editingId,setEditingId] = useState<string|null>(null);
+  const [orderList,setOrderList] = useState<Order[]>([]);
+  const [orderPage,setOrderPage] = useState(1);
+  const [orderTotal,setOrderTotal] = useState(0);
+  const [recommendations,setRecommendations] = useState<Product[]>([]);
+  const [personalized,setPersonalized] = useState(false);
+  const [favoritesCount,setFavoritesCount] = useState(0);
+  const [loading,setLoading] = useState(true);
+  const [busy,setBusy] = useState(false);
+  const [message,setMessage] = useState("");
 
-  async function refresh() {
-    setNotice("");
-    const authResponse = await fetch("/api/auth", { cache: "no-store" });
-    const authData = await authResponse.json().catch(() => null);
-    if (!authResponse.ok || !authData?.user) {
-      router.replace("/login");
-      return;
-    }
-    setUser(authData.user);
-    const [ordersResponse, favoritesResponse, supportResponse] = await Promise.allSettled([
-      fetch("/api/orders", { cache: "no-store" }),
-      fetch("/api/favorites", { cache: "no-store" }),
-      fetch("/api/support", { cache: "no-store" }),
+  const loadOrders = useCallback(async (page:number,append=false) => {
+    const data=await jsonFetch<{orders:Order[];pagination:{total:number}}>(`/api/orders?page=${page}&pageSize=30`);
+    setOrderList(previous=>append?[...previous,...data.orders]:data.orders);
+    setOrderTotal(data.pagination.total);
+    setOrderPage(page);
+  },[]);
+  const reload = useCallback(async () => {
+    const auth=await jsonFetch<{user:Profile|null}>("/api/auth");
+    if(!auth.user){router.replace("/login");return;}
+    const [details,addressesData,ordersData,recoData,favoriteData] = await Promise.allSettled([
+      jsonFetch<{profile:Profile}>("/api/account/profile"),
+      jsonFetch<{addresses:Address[]}>("/api/account/addresses"),
+      jsonFetch<{orders:Order[];pagination:{total:number}}>("/api/orders?page=1&pageSize=30"),
+      jsonFetch<{recommendations:Product[];personalized:boolean}>("/api/account/recommendations"),
+      jsonFetch<{favorites:string[]}>("/api/favorites")
     ]);
-
-    if (ordersResponse.status === "fulfilled" && ordersResponse.value.ok) {
-      const data = await ordersResponse.value.json().catch(() => ({ orders: [] }));
-      setOrders(Array.isArray(data.orders) ? data.orders : []);
-    } else setOrders([]);
-
-    if (favoritesResponse.status === "fulfilled" && favoritesResponse.value.ok) {
-      const data = await favoritesResponse.value.json().catch(() => ({ favorites: [] }));
-      setFavorites(Array.isArray(data.favorites) ? data.favorites : []);
-    } else setFavorites([]);
-
-    if (supportResponse.status === "fulfilled" && supportResponse.value.ok) {
-      const data = await supportResponse.value.json().catch(() => ({ tickets: [] }));
-      setTickets(Array.isArray(data.tickets) ? data.tickets : []);
-    } else setTickets([]);
-  }
-
-  useEffect(() => {
-    refresh().catch(() => setNotice("اطلاعات پنل با خطا روبه‌رو شد. دوباره تلاش کنید.")).finally(() => setLoading(false));
-  }, []);
-
-  async function logout() {
-    setBusy(true);
-    try {
-      await fetch("/api/auth", { method: "DELETE" });
-      router.replace("/login");
-      router.refresh();
-    } finally {
-      setBusy(false);
+    if(details.status==="fulfilled"){
+      setProfile(details.value.profile);
+      setFormProfile({fullName:details.value.profile.full_name,phone:details.value.profile.phone||""});
+    }else{
+      setProfile(auth.user);
+      setFormProfile({fullName:auth.user.full_name,phone:""});
     }
+    if(addressesData.status==="fulfilled") setAddresses(addressesData.value.addresses);
+    if(ordersData.status==="fulfilled") {
+      setOrderList(ordersData.value.orders);setOrderTotal(ordersData.value.pagination.total);setOrderPage(1);
+    }
+    if(recoData.status==="fulfilled"){
+      setRecommendations(recoData.value.recommendations);setPersonalized(recoData.value.personalized);
+    }
+    if(favoriteData.status==="fulfilled")setFavoritesCount(favoriteData.value.favorites.length);
+    if([details,addressesData,ordersData,recoData].some(result=>result.status==="rejected"))
+      setMessage("بخشی از اطلاعات بارگذاری نشد؛ مطمئن شوید Migration جدید را در pgAdmin اجرا کرده‌اید.");
+  },[router]);
+  useEffect(()=>{
+    const requested = new URLSearchParams(window.location.search).get("tab");
+    if(tabs.some(t=>t.id===requested)) setTab(requested as Tab);
+    reload().catch(()=>setMessage("اتصال به سرور برقرار نشد؛ دوباره تلاش کنید.")).finally(()=>setLoading(false));
+  },[reload]);
+
+  const activeOrders = useMemo(()=>orderList.filter(o=>!["cancelled","delivered"].includes(o.status)).length,[orderList]);
+  function goTab(next:Tab){setTab(next);setMessage("");router.replace(`/account?tab=${next}`,{scroll:false});}
+  function editAddress(address?:Address){
+    setEditingId(address?.id??null);
+    setAddressForm(address?{title:address.title,recipient_name:address.recipient_name,phone:address.phone,city:address.city,address:address.address,postal_code:address.postal_code,is_default:address.is_default}:{...emptyAddress,recipient_name:profile?.full_name??"",phone:profile?.phone??""});
+    document.getElementById("account-address-form")?.scrollIntoView({behavior:"smooth",block:"start"});
   }
-
-  const openTickets = tickets.filter((ticket) => ticket.status !== "closed").length;
-  const pendingOrders = orders.filter((order) => ["received", "processing", "shipped"].includes(order.status)).length;
-  const latestOrders = useMemo(() => orders.slice(0, 3), [orders]);
-  const latestTickets = useMemo(() => tickets.slice(0, 2), [tickets]);
-
-  if (loading) {
-    return (
-      <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <div className={`${panel} p-8 text-center ${gold}`}>در حال بارگذاری پنل کاربری…</div>
-      </main>
-    );
+  async function saveAddress(event:FormEvent<HTMLFormElement>){
+    event.preventDefault();setBusy(true);setMessage("");
+    try{
+      const method=editingId?"PATCH":"POST";
+      await jsonFetch("/api/account/addresses",{method,headers:{"Content-Type":"application/json"},body:JSON.stringify({...addressForm,...(editingId?{id:editingId}:{})})});
+      const data=await jsonFetch<{addresses:Address[]}>("/api/account/addresses");
+      setAddresses(data.addresses);setEditingId(null);setAddressForm(emptyAddress);setMessage("آدرس با موفقیت ذخیره شد.");
+    }catch(e){setMessage(e instanceof Error?e.message:"ذخیره آدرس ناموفق بود.");}
+    finally{setBusy(false);}
   }
+  async function removeAddress(id:string){
+    if(!window.confirm("این آدرس حذف شود؟"))return;
+    setBusy(true);setMessage("");
+    try{
+      await jsonFetch("/api/account/addresses",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({id})});
+      setAddresses(list=>list.filter(a=>a.id!==id));
+      const data=await jsonFetch<{addresses:Address[]}>("/api/account/addresses");
+      setAddresses(data.addresses);setMessage("آدرس حذف شد.");
+    }catch(e){setMessage(e instanceof Error?e.message:"حذف آدرس ناموفق بود.");}
+    finally{setBusy(false);}
+  }
+  async function saveProfile(event:FormEvent<HTMLFormElement>){
+    event.preventDefault();setBusy(true);setMessage("");
+    try{
+      const data=await jsonFetch<{profile:Profile}>("/api/account/profile",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(formProfile)});
+      setProfile(data.profile);setMessage("اطلاعات حساب به‌روزرسانی شد.");
+    }catch(e){setMessage(e instanceof Error?e.message:"ثبت اطلاعات ناموفق بود.");}
+    finally{setBusy(false);}
+  }
+  async function logout(){setBusy(true);try{await jsonFetch("/api/auth",{method:"DELETE"});router.replace("/login");router.refresh();}catch{setMessage("خروج ناموفق بود.");setBusy(false);}}
 
-  return (
-    <main className="mx-auto max-w-7xl space-y-6 px-4 py-7 sm:px-6 lg:px-8 lg:py-10">
-      <section className={`${panel} overflow-hidden`}>
-        <div className="relative isolate p-6 sm:p-8 lg:p-10">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(212,170,87,.18),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(212,170,87,.12),transparent_28%)]" />
-          <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-start gap-4">
-              <span className="grid size-16 place-items-center rounded-[22px] border border-[#8d6f39]/65 bg-[#d2a961]/10 text-[#e6c47b] shadow-[0_0_35px_rgba(210,169,91,.12)]">
-                <User2 size={30} />
-              </span>
-              <div>
-                <div className={`mb-2 flex items-center gap-2 text-xs font-bold tracking-[.25em] ${gold}`}>
-                  <Sparkles size={14} /> MISS DOOD ACCOUNT
-                </div>
-                <h1 className="text-2xl font-black text-[#faf2e2] sm:text-3xl">
-                  {user?.full_name || "کاربر میس دود"}
-                </h1>
-                <div className={`mt-3 flex flex-wrap items-center gap-3 text-sm ${muted}`}>
-                  <span className="inline-flex items-center gap-2"><Mail size={16} /> {user?.email}</span>
-                  {user?.role === "admin" && (
-                    <span className="inline-flex items-center gap-2 rounded-full border border-[#8d6f39]/60 bg-[#d2a961]/10 px-3 py-1 text-xs font-bold text-[#e8c784]">
-                      <ShieldCheck size={14} /> مدیر فروشگاه
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <button onClick={() => refresh().catch(() => setNotice("به‌روزرسانی ناموفق بود."))} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-[#71592f] bg-[#120f0b] px-4 font-bold text-[#f4e1b6] transition hover:border-[#d6b36c] hover:text-white">
-                <RefreshCw size={18} /> به‌روزرسانی پنل
-              </button>
-              <button disabled={busy} onClick={logout} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-[#7c3a3a] bg-[#2a1313] px-4 font-bold text-[#f3b2b2] transition hover:border-[#cc6d6d] hover:text-white disabled:opacity-60">
-                <LogOut size={18} /> خروج امن
-              </button>
-            </div>
+  if(loading)return <main className="mx-auto max-w-7xl px-4 py-12"><p role="status" className={panel}>در حال دریافت اطلاعات حساب…</p></main>;
+  if(!profile)return <main className="mx-auto max-w-xl px-4 py-10"><div className={panel}><h1 className="text-2xl font-bold">حساب کاربری</h1><p className="my-5 text-[#dbc7a3]">{message||"ابتدا وارد حساب شوید."}</p><Link href="/login" className={goldButton}>ورود به حساب</Link></div></main>;
+
+  return <main className="mx-auto max-w-7xl space-y-6 px-4 py-8 text-[#f6eddc] sm:px-6 lg:px-8">
+    <header className={`${panel} relative overflow-hidden`}>
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(193,150,69,.22),transparent_48%)]" />
+      <div className="relative flex flex-wrap items-center justify-between gap-5">
+        <div className="flex items-center gap-4"><span className="grid size-14 place-items-center rounded-2xl border border-[#b89652] bg-[#ae8748]/15 text-[#e6c47b]"><UserRound size={28}/></span>
+          <div><p className="mb-1 text-xs font-bold tracking-[.25em] text-[#dabb76]">MISS DOOD CLUB</p><h1 className="text-2xl font-black sm:text-3xl">سلام، {profile.full_name||"دوست عزیز"}</h1><p className="mt-2 text-sm text-[#b8a98c]" dir="ltr">{profile.email}</p></div>
+        </div><div className="flex flex-wrap gap-2"><button className={outlineButton} onClick={()=>{setMessage("");void reload().catch(()=>setMessage("به‌روزرسانی ناموفق بود."));}}><RefreshCw size={16}/> به‌روزرسانی</button><button className={outlineButton} disabled={busy} onClick={logout}><LogOut size={16}/> خروج امن</button></div>
+      </div>
+    </header>
+    <div className="grid items-start gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">
+      <aside className={`${panel} lg:sticky lg:top-32`} aria-label="منوی حساب کاربری">
+        <nav className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-1">
+          {tabs.map(({id,label,icon:Icon})=><button key={id} onClick={()=>goTab(id)} aria-current={tab===id?"page":undefined}
+            className={`flex min-h-12 items-center gap-2 rounded-xl border px-3 text-right text-sm font-bold transition ${tab===id?"border-[#c5a15c] bg-[#4a381d] text-[#f8deaa]":"border-[#554528]/65 bg-[#0d0b09] text-[#c6b698] hover:border-[#a48950]"}`}>
+            <Icon size={17}/>{label}
+          </button>)}
+        </nav>
+        <div className="mt-5 border-t border-[#594629] pt-4"><Link href="/shop" className="inline-flex items-center gap-2 text-sm font-bold text-[#dabb76]"><ArrowLeft size={16}/> بازگشت به فروشگاه</Link></div>
+      </aside>
+      <div className="min-w-0 space-y-5">
+        {message&&<p role="status" className="rounded-2xl border border-[#aa8545]/55 bg-[#3b2c16] px-5 py-4 text-sm leading-7 text-[#f0d6a2]">{message}</p>}
+
+        {tab==="overview"&&<>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {[{label:"کل سفارش‌ها",value:orderTotal,icon:Package},{label:"در جریان (بارگذاری‌شده)",value:activeOrders,icon:ClipboardList},{label:"علاقه‌مندی‌ها",value:favoritesCount,icon:Heart}].map(({label,value,icon:Icon})=><div key={label} className={`${panel} flex items-center justify-between`}><div><p className="text-xs text-[#c2ad84]">{label}</p><p className="mt-3 text-3xl font-black text-[#f6d48f]">{value.toLocaleString("fa-IR")}</p></div><Icon className="text-[#b58e4b]" size={26}/></div>)}
           </div>
-          {notice && (
-            <p className="relative mt-5 rounded-2xl border border-[#7e6538]/55 bg-[#0e0c09]/75 px-4 py-3 text-sm text-[#f3deae]">
-              {notice}
-            </p>
-          )}
-        </div>
-      </section>
-
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard title="سفارش‌ها" value={orders.length.toLocaleString("fa-IR")} hint="تمام سفارش‌های ثبت‌شده شما" icon={Package} />
-        <StatCard title="در جریان" value={pendingOrders.toLocaleString("fa-IR")} hint="سفارش‌هایی که هنوز نهایی نشده‌اند" icon={Truck} />
-        <StatCard title="علاقه‌مندی‌ها" value={favorites.length.toLocaleString("fa-IR")} hint="محصولات ذخیره‌شده برای خرید بعدی" icon={Heart} />
-        <StatCard title="پشتیبانی" value={openTickets.toLocaleString("fa-IR")} hint="گفت‌وگوهای باز و پاسخ‌داده‌نشده" icon={LifeBuoy} />
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-[1.45fr_.95fr]">
-        <div className={`${panel} p-5 sm:p-6`}>
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-black text-[#f8efdf]">آخرین سفارش‌ها</h2>
-              <p className={`mt-1 text-sm ${muted}`}>مشاهده سریع وضعیت سفارش‌های اخیر شما</p>
-            </div>
-            <Link href="/orders" className={`inline-flex items-center gap-2 text-sm font-bold ${gold} hover:text-[#f5deac]`}>
-              مشاهده همه سفارش‌ها <ArrowLeft size={16} />
-            </Link>
-          </div>
-          {latestOrders.length ? (
-            <div className="space-y-4">
-              {latestOrders.map((order) => (
-                <article key={order.id} className={`${soft} p-4 sm:p-5`}>
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="font-black text-[#f7efdf]">سفارش #{order.id.slice(0, 8)}</h3>
-                        {statusBadge(order.status)}
-                      </div>
-                      <p className={`text-xs leading-6 ${muted}`}>{fmtDate(order.date)}</p>
-                      <div className={`flex flex-wrap items-center gap-x-4 gap-y-2 text-sm ${muted}`}>
-                        <span className="inline-flex items-center gap-2"><CreditCard size={15} /> {fmtMoney(order.total)}</span>
-                        <span className="inline-flex items-center gap-2"><MapPin size={15} /> {order.shipping?.city || "—"}</span>
-                      </div>
-                    </div>
-                    <div className="sm:text-left">
-                      <p className={`text-xs font-bold tracking-[.18em] ${gold}`}>تعداد آیتم</p>
-                      <p className="mt-1 text-xl font-black text-[#f7efdf]">{(order.items?.length ?? 0).toLocaleString("fa-IR")}</p>
-                    </div>
-                  </div>
-                  {(order.items?.length ?? 0) > 0 && (
-                    <div className="mt-4 rounded-2xl border border-[#4e4127]/65 bg-black/20 px-4 py-3 text-sm text-[#d8ccb2]">
-                      {order.items!.slice(0, 3).map((item, idx) => (
-                        <div key={idx} className="flex items-center justify-between gap-3 py-1">
-                          <span>{item.name}</span>
-                          <span className="text-xs">{item.quantity.toLocaleString("fa-IR")} عدد</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </article>
-              ))}
-            </div>
-          ) : (
-            <div className={`${soft} p-6 text-center`}>
-              <Package className="mx-auto mb-3 text-[#d2a961]" size={28} />
-              <p className="font-bold text-[#f5ecdb]">هنوز سفارشی ثبت نکرده‌اید.</p>
-              <Link href="/shop" className={`mt-4 inline-flex items-center gap-2 text-sm font-bold ${gold} hover:text-[#f5deac]`}>
-                شروع خرید <ArrowLeft size={16} />
-              </Link>
-            </div>
-          )}
-        </div>
-
-        <div className="space-y-6">
-          <section className={`${panel} p-5 sm:p-6`}>
-            <h2 className="text-xl font-black text-[#f8efdf]">میانبرهای کاربردی</h2>
-            <div className="mt-5 grid gap-3">
-              {[
-                { href: "/shop", title: "ادامه خرید", hint: "مشاهده محصولات و دسته‌بندی‌ها", icon: Package },
-                { href: "/favorites", title: "علاقه‌مندی‌ها", hint: "کالاهای ذخیره‌شده برای بعد", icon: Heart },
-                { href: "/orders", title: "پیگیری سفارش", hint: "بررسی وضعیت تحویل و جزئیات", icon: Truck },
-                { href: "/contact", title: "تماس و پشتیبانی", hint: "شماره تماس و راه‌های ارتباطی", icon: LifeBuoy },
-              ].map(({ href, title, hint, icon: Icon }) => (
-                <Link key={href} href={href} className={`${soft} group flex items-center justify-between gap-3 p-4 transition hover:border-[#d6b36c]`}>
-                  <span className="flex items-center gap-3">
-                    <span className="grid size-11 place-items-center rounded-2xl border border-[#7e6538]/60 bg-[#d2a961]/10 text-[#e6c47b]">
-                      <Icon size={19} />
-                    </span>
-                    <span>
-                      <span className="block font-extrabold text-[#f7efdf]">{title}</span>
-                      <span className={`block text-xs ${muted}`}>{hint}</span>
-                    </span>
-                  </span>
-                  <ArrowLeft size={18} className="text-[#d8c39a] transition group-hover:-translate-x-1 group-hover:text-[#f3ddab]" />
-                </Link>
-              ))}
-            </div>
+          <section className={panel}><div className="mb-5 flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-black">آخرین سفارش‌های شما</h2><button onClick={()=>goTab("orders")} className="text-sm font-bold text-[#e6c47b]">مشاهده همه</button></div>
+            {orderList.length?orderList.slice(0,3).map(o=><div key={o.id} className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#56462b] bg-[#0d0b09] p-4"><div><p className="font-bold">سفارش {o.id.slice(0,8)}</p><p className="mt-1 text-xs text-[#baa987]">{new Date(o.date).toLocaleDateString("fa-IR")} · {statuses[o.status]||o.status}</p></div><Link className={outlineButton} href={`/account/invoices/${o.id}`}>صورتحساب <Download size={15}/></Link></div>):<p className="text-sm text-[#baa987]">هنوز سفارشی ثبت نشده است.</p>}
           </section>
+          <div className="grid gap-4 sm:grid-cols-2"><button onClick={()=>goTab("addresses")} className={`${panel} flex items-center justify-between text-right`}><span><strong>آدرس‌های ذخیره‌شده</strong><span className="mt-2 block text-sm text-[#b9a987]">{addresses.length.toLocaleString("fa-IR")} آدرس</span></span><MapPin className="text-[#e6c47b]"/></button><button onClick={()=>goTab("recommended")} className={`${panel} flex items-center justify-between text-right`}><span><strong>پیشنهاد مخصوص شما</strong><span className="mt-2 block text-sm text-[#b9a987]">بر اساس سابقه خرید و علاقه‌مندی</span></span><Sparkles className="text-[#e6c47b]"/></button></div>
+        </>}
 
-          <section className={`${panel} p-5 sm:p-6`}>
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-black text-[#f8efdf]">پشتیبانی اخیر</h2>
-              <Link href="/contact" className={`text-sm font-bold ${gold} hover:text-[#f5deac]`}>
-                تماس با ما
-              </Link>
-            </div>
-            {latestTickets.length ? (
-              <div className="space-y-3">
-                {latestTickets.map((ticket) => (
-                  <article key={ticket.id} className={`${soft} p-4`}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-bold text-[#f7efdf]">{ticket.subject || "درخواست پشتیبانی"}</p>
-                        <p className={`mt-1 text-xs ${muted}`}>{fmtDate(ticket.created_at)}</p>
-                      </div>
-                      {statusBadge(ticket.status)}
-                    </div>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <div className={`${soft} p-5 text-sm ${muted}`}>درخواست پشتیبانی فعالی ندارید.</div>
-            )}
+        {tab==="addresses"&&<>
+          <section className={panel}><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-black">دفترچه آدرس‌ها</h2><p className="mt-2 text-sm text-[#b9a987]">حداکثر ۲۰ آدرس؛ امکان ویرایش، حذف و انتخاب آدرس پیش‌فرض.</p></div><button onClick={()=>editAddress()} className={outlineButton}><Plus size={17}/> آدرس جدید</button></div>
+            <div className="mt-5 grid gap-3 md:grid-cols-2">{addresses.map(a=><article key={a.id} className="rounded-2xl border border-[#6d5630] bg-[#0b0a08] p-5"><div className="flex items-center justify-between gap-2"><h3 className="font-black text-[#e6c47b]">{a.title}</h3>{a.is_default&&<span className="rounded-full border border-[#a88b54] bg-[#44341b] px-3 py-1 text-xs">پیش‌فرض</span>}</div><p className="mt-3 text-sm leading-7">{a.recipient_name}، {a.phone}</p><p className="mt-2 text-sm leading-7 text-[#b9a987]">{a.city}، {a.address}</p>{a.postal_code&&<p className="mt-1 text-xs text-[#b9a987]">کد پستی: {a.postal_code}</p>}<div className="mt-4 flex gap-2"><button className={outlineButton} onClick={()=>editAddress(a)}><Pencil size={15}/> ویرایش</button><button className={outlineButton} disabled={busy} onClick={()=>void removeAddress(a.id)}><Trash2 size={15}/> حذف</button></div></article>)}
+            {!addresses.length&&<p className="text-sm text-[#b9a987]">هنوز آدرسی ذخیره نکرده‌اید.</p>}</div>
           </section>
+          <section id="account-address-form" className={panel}><div className="mb-5 flex justify-between gap-3"><h2 className="text-xl font-black">{editingId?"ویرایش آدرس":"افزودن آدرس جدید"}</h2>{editingId&&<button onClick={()=>editAddress()} className={outlineButton}><X size={15}/> لغو</button>}</div>
+            <form onSubmit={saveAddress} className="grid gap-4 sm:grid-cols-2">
+              {([{key:"title",label:"عنوان آدرس",placeholder:"خانه، محل کار"},{key:"recipient_name",label:"نام گیرنده",placeholder:"نام کامل"},{key:"phone",label:"شماره تماس",placeholder:"09..."},{key:"city",label:"شهر",placeholder:"نام شهر"},{key:"postal_code",label:"کد پستی (اختیاری)",placeholder:"کد پستی"}] as const).map(item=><label key={item.key} className="text-sm font-bold">{item.label}<input required={item.key!=="postal_code"} value={addressForm[item.key]} onChange={e=>setAddressForm(v=>({...v,[item.key]:e.target.value}))} placeholder={item.placeholder} className={field} maxLength={item.key==="title"?80:item.key==="postal_code"?20:120} dir="auto"/></label>)}
+              <label className="sm:col-span-2 text-sm font-bold">نشانی کامل<textarea required minLength={6} maxLength={1000} rows={3} value={addressForm.address} onChange={e=>setAddressForm(v=>({...v,address:e.target.value}))} className={field}/></label>
+              <label className="flex items-center gap-3 text-sm font-bold"><input type="checkbox" checked={addressForm.is_default} onChange={e=>setAddressForm(v=>({...v,is_default:e.target.checked}))}/> آدرس پیش‌فرض من</label>
+              <div className="sm:text-left"><button disabled={busy} type="submit" className={goldButton}><Save size={16}/>{busy?"در حال ذخیره…":editingId?"ذخیره ویرایش":"ثبت آدرس"}</button></div>
+            </form>
+          </section>
+        </>}
 
-          <section className={`${panel} p-5 sm:p-6`}>
-            <h2 className="text-xl font-black text-[#f8efdf]">اطلاعات حساب</h2>
-            <div className="mt-4 space-y-3">
-              <div className={`${soft} flex items-center justify-between gap-3 p-4`}>
-                <span className={muted}>نام و نام خانوادگی</span>
-                <strong className="text-[#f7efdf]">{user?.full_name || "ثبت نشده"}</strong>
-              </div>
-              <div className={`${soft} flex items-center justify-between gap-3 p-4`} dir="ltr">
-                <span className={muted}>Email</span>
-                <strong className="truncate text-[#f7efdf]">{user?.email || "—"}</strong>
-              </div>
-              <div className={`${soft} flex items-center justify-between gap-3 p-4`}>
-                <span className={muted}>سطح دسترسی</span>
-                <strong className="text-[#f7efdf]">{user?.role === "admin" ? "مدیر" : "مشتری"}</strong>
-              </div>
-            </div>
-          </section>
-        </div>
-      </section>
-    </main>
-  );
+        {tab==="orders"&&<section className={panel}><div className="mb-5"><h2 className="text-xl font-black">تاریخچه سفارش‌ها و صورتحساب‌ها</h2><p className="mt-2 text-sm text-[#b9a987]">{orderTotal.toLocaleString("fa-IR")} سفارش ثبت شده؛ صورتحساب هر سفارش قابل چاپ یا ذخیره به PDF است.</p></div>
+          {orderList.map(o=><article key={o.id} className="mb-4 rounded-2xl border border-[#66512d] bg-[#0b0a08] p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="break-all font-bold">شماره سفارش: <bdi dir="ltr">{o.id}</bdi></p><p className="mt-2 text-xs text-[#b9a987]">{new Date(o.date).toLocaleString("fa-IR")} · {statuses[o.status]||o.status}</p></div><Link href={`/account/invoices/${o.id}`} className={outlineButton}><Download size={16}/> مشاهده صورتحساب</Link></div>
+            <ul className="mt-4 space-y-2 border-t border-[#55452a] pt-4 text-sm">{(o.items??[]).map((i,n)=><li key={n} className="flex justify-between gap-3"><span>{i.name} × {i.quantity.toLocaleString("fa-IR")}</span><span>{money(i.amount)}</span></li>)}</ul>
+            <p className="mt-4 border-t border-[#55452a] pt-3 text-left font-black text-[#ebc87f]">{money(o.total)}</p>
+          </article>)}
+          {!orderList.length&&<p className="py-5 text-center text-sm text-[#b9a987]">تاکنون سفارشی ثبت نکرده‌اید.</p>}
+          {orderList.length<orderTotal&&<button className={goldButton} disabled={busy} onClick={async()=>{setBusy(true);setMessage("");try{await loadOrders(orderPage+1,true);}catch(e){setMessage(e instanceof Error?e.message:"خطا در دریافت سفارش‌ها.");}finally{setBusy(false);}}}>نمایش سفارش‌های بیشتر <ArrowLeft size={17}/></button>}
+        </section>}
+
+        {tab==="profile"&&<section className={panel}><h2 className="text-xl font-black">ویرایش اطلاعات حساب</h2><p className="mt-2 text-sm leading-7 text-[#b9a987]">برای امنیت حساب، تغییر ایمیل ورود از این بخش فعال نیست.</p><form onSubmit={saveProfile} className="mt-6 max-w-xl space-y-5"><label className="block text-sm font-bold">نام و نام خانوادگی<input required minLength={2} maxLength={120} autoComplete="name" value={formProfile.fullName} onChange={e=>setFormProfile(v=>({...v,fullName:e.target.value}))} className={field}/></label>
+          <label className="block text-sm font-bold">شماره تماس (اختیاری)<input type="tel" maxLength={25} value={formProfile.phone} onChange={e=>setFormProfile(v=>({...v,phone:e.target.value}))} className={field} dir="ltr"/></label>
+          <label className="block text-sm font-bold">ایمیل ورود (فقط خواندنی)<input readOnly value={profile.email} className={`${field} opacity-70`} dir="ltr"/></label>
+          <button disabled={busy} className={goldButton}><Save size={17}/> ذخیره تغییرات</button></form>
+          <p className="mt-6 flex items-center gap-2 text-xs text-[#b9a987]"><ShieldCheck size={16}/> اطلاعات فقط در حساب شما ذخیره می‌شوند.</p>
+        </section>}
+
+        {tab==="recommended"&&<section className={panel}><div className="mb-6"><h2 className="flex items-center gap-2 text-xl font-black"><Sparkles className="text-[#e6c47b]"/> پیشنهادهای مخصوص شما</h2><p className="mt-2 text-sm leading-7 text-[#b9a987]">{personalized?"بر اساس دسته‌بندی کالاهای موردعلاقه و سفارش‌های قبلی شما":"چون هنوز سابقه کافی ندارید، محصولات موجود و تازه‌تر را نمایش می‌دهیم."}</p></div>
+          {recommendations.length?<ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{recommendations.map(p=><li key={p.slug}><ProductCard product={p} saveable/></li>)}</ul>:<div className="rounded-xl border border-[#6e5630] p-6 text-center text-sm text-[#b9a987]">در حال حاضر کالای موجودی برای پیشنهاد نداریم.</div>}
+        </section>}
+      </div>
+    </div>
+  </main>;
 }
