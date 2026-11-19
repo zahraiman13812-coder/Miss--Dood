@@ -1,12 +1,13 @@
-import { MapPin, Phone, Navigation } from "lucide-react";
+import Image from "next/image";
+import { MapPin, Phone, Navigation, ExternalLink } from "lucide-react";
 import { dialLink, storeContact } from "@/data/storeContact";
 
 function mapLinks(address: string) {
   const query = encodeURIComponent(address);
   return [
-    { name: "Google Maps", href: `https://www.google.com/maps/search/?api=1&query=${query}`, icon: "G", tone: "bg-[#f5f5f5] text-[#4285f4]" },
-    { name: "بلد", href: `https://balad.ir/search/${query}`, icon: "ب", tone: "bg-[#e7f5ed] text-[#16834a]" },
-    { name: "نشان", href: `https://neshan.org/maps/search/${query}`, icon: "ن", tone: "bg-[#e8f1ff] text-[#1768c5]" },
+    { name: "Google Maps", href: `https://www.google.com/maps/search/?api=1&query=${query}`, logo: "/images/map-services/google-maps.png" },
+    { name: "بلد", href: `https://balad.ir/search/${query}`, logo: "/images/map-services/balad.png" },
+    { name: "نشان", href: `https://neshan.org/maps/search/${query}`, logo: "/images/map-services/neshan.png" },
   ];
 }
 
@@ -48,9 +49,11 @@ export default function ContactPage() {
           <div className="grid grid-cols-3 gap-2">
             {maps.map((map) => (
               <a key={map.name} href={map.href} target="_blank" rel="noopener noreferrer"
-                className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-2xl border border-line bg-page/70 px-2 py-3 transition hover:-translate-y-0.5 hover:border-accent/70 hover:bg-accent/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">
-                <span aria-hidden="true" className={`grid size-9 place-items-center rounded-xl text-lg font-black ${map.tone}`}>{map.icon}</span>
-                <span className="text-xs font-bold text-content">{map.name}</span>
+                className="flex min-h-28 flex-col items-center justify-center gap-2 rounded-2xl border border-line bg-page/70 px-2 py-3 transition hover:-translate-y-0.5 hover:border-accent/70 hover:bg-accent/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">
+                <span className="grid size-12 place-items-center rounded-xl bg-white/95 p-1 shadow-sm sm:size-14" aria-hidden="true">
+                  <Image src={map.logo} alt="" width={48} height={48} className="h-full w-full object-contain" />
+                </span>
+                <span className="flex items-center justify-center gap-1 text-xs font-bold text-content"><ExternalLink size={12} aria-hidden="true" />{map.name}</span>
               </a>
             ))}
           </div>

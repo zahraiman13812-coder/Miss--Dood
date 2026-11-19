@@ -2,7 +2,7 @@
 // نمونه قالب: phones: ["02112345678", "09121234567"]
 export const storeContact = {
   address: "خیابان انقلاب، پل چوبی، سپاه شمالی، پلاک ۶۵",
-  phones: ["", ""],
+  phones: ["09000000000"],
 };
 
 export function dialLink(phone: string) {
