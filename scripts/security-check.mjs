@@ -17,3 +17,9 @@ assert.match(admin, /currentUser\(\)/, "Admin endpoints must authenticate users"
 assert.match(admin, /role\s*!==\s*["']admin["']/, "Admin endpoints must enforce admin role");
 assert.match(sessions, /httpOnly\s*:\s*true/, "Session cookies must be HttpOnly");
 console.log("Security source checks passed");
+
+// Regression checks for transactional idempotency, address defaults and failed emails.
+assert.match(orders, /pg_advisory_xact_lock/, "Concurrent retries need an advisory transaction lock");
+assert.match(otp, /code_hash=\$2 AND consumed_at IS NULL/, "Failed sends must only invalidate their own challenge");
+const addresses = source("src/app/api/account/addresses/route.ts");
+assert.match(addresses, /keepDefault/, "Editing addresses must preserve a default address");

@@ -51,6 +51,11 @@ export async function POST(req:NextRequest) {try {
  const existing=await db().query<{id:string}>("SELECT id FROM orders WHERE user_id=$1 AND idempotency_key=$2",[user.id,key]);
  if(existing.rows[0])return NextResponse.json({orderId:existing.rows[0].id},{status:200,headers:noStore});
  const orderId=await transaction(async client=>{
+  // Serialize same-user, same-key requests BEFORE inventory locks. Otherwise two
+  // simultaneous checkouts with different carts can both reach the unique insert.
+  await client.query("SELECT pg_advisory_xact_lock(hashtext($1),hashtext($2))",[user.id,key]);
+  const duplicate=await client.query<{id:string}>("SELECT id FROM orders WHERE user_id=$1 AND idempotency_key=$2",[user.id,key]);
+  if(duplicate.rows[0])return duplicate.rows[0].id;
   const shipping=await client.query<{fee:string}>("SELECT fee::text FROM shipping_rules WHERE city=$1 AND active=true",[city]);
   if(!shipping.rows[0] && method!=="pickup")throw new OrderError("INVALID_SHIPPING_CITY");
   let fee = method === "pickup" ? 0 : Number(shipping.rows[0]?.fee);

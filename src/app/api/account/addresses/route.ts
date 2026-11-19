@@ -96,12 +96,28 @@ export async function PATCH(request: NextRequest) {
       await client.query("SELECT id FROM users WHERE id=$1 FOR UPDATE", [user.id]);
       const exists = await client.query("SELECT id FROM user_addresses WHERE user_id=$1 AND id=$2", [user.id, input.id]);
       if (!exists.rowCount) return null;
-      if (data.is_default) await client.query("UPDATE user_addresses SET is_default=false WHERE user_id=$1", [user.id]);
+      // Under the unique per-user default index, remove the old default first,
+      // then promote the replacement. The existing user-row lock serializes writes.
+      const wasDefault = await client.query<{is_default:boolean}>(
+        "SELECT is_default FROM user_addresses WHERE user_id=$1 AND id=$2", [user.id, input.id]
+      );
+      const otherAddressExists = !data.is_default && wasDefault.rows[0]?.is_default === true
+        ? (await client.query("SELECT 1 FROM user_addresses WHERE user_id=$1 AND id<>$2 LIMIT 1", [user.id,input.id])).rowCount !== 0
+        : false;
+      const keepDefault = data.is_default || (wasDefault.rows[0]?.is_default === true && !otherAddressExists);
+      if (data.is_default) {
+        await client.query("UPDATE user_addresses SET is_default=false WHERE user_id=$1", [user.id]);
+      } else if (wasDefault.rows[0]?.is_default && otherAddressExists) {
+        await client.query("UPDATE user_addresses SET is_default=false WHERE user_id=$1 AND id=$2", [user.id,input.id]);
+        await client.query(`UPDATE user_addresses SET is_default=true,updated_at=now()
+          WHERE id=(SELECT id FROM user_addresses WHERE user_id=$1 AND id<>$2 ORDER BY created_at DESC,id DESC LIMIT 1)`,
+          [user.id,input.id]);
+      }
       const updated = await client.query<Address>(
         `UPDATE user_addresses SET title=$3,recipient_name=$4,phone=$5,city=$6,province=$7,building=$8,unit=$9,address=$10,postal_code=$11,
          is_default=$12,latitude=$13,longitude=$14,preferred_shipping_method=$15,updated_at=now() WHERE user_id=$1 AND id=$2
          RETURNING id,title,recipient_name,phone,city,province,building,unit,address,postal_code,is_default,latitude,longitude,preferred_shipping_method`,
-        [user.id, input.id, data.title, data.recipient_name, data.phone, data.city, data.province, data.building, data.unit, data.address, data.postal_code, data.is_default, data.latitude, data.longitude, data.preferred_shipping_method]
+        [user.id, input.id, data.title, data.recipient_name, data.phone, data.city, data.province, data.building, data.unit, data.address, data.postal_code, keepDefault, data.latitude, data.longitude, data.preferred_shipping_method]
       );
       return updated.rows[0];
     });

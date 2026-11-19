@@ -103,7 +103,11 @@ export async function POST(request: NextRequest) {
       try {
         await sendEmail(email, code);
       } catch (error) {
-        await db().query("UPDATE email_otp_challenges SET consumed_at=now() WHERE email=$1", [email]);
+        // A rejected email must not leave a one-minute cooldown or burn the daily quota.
+        // Match the hash so a failed overlapping attempt cannot invalidate a newer code.
+        await db().query(`UPDATE email_otp_challenges
+          SET consumed_at=now(),send_count=GREATEST(send_count-1,0),last_sent_at='epoch'::timestamptz
+          WHERE email=$1 AND code_hash=$2 AND consumed_at IS NULL`, [email, digest]);
         if (error instanceof Error && error.message === "EMAIL_NOT_CONFIGURED") return bad("EMAIL_NOT_CONFIGURED", 503);
         if (error instanceof Error && error.message === "RESEND_ACCESS_DENIED") return bad("RESEND_ACCESS_DENIED", 503);
         if (error instanceof Error && error.message === "RESEND_SENDER_INVALID") return bad("RESEND_SENDER_INVALID", 503);
