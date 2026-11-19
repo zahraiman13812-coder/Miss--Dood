@@ -28,7 +28,7 @@ export default function StoreLoading({
           <span className={styles.starTwo}>✦</span>
           <span className={styles.logoWrap}>
             <Image
-              src="/brand/miss-dood-logo.jpg"
+              src="/brand/miss-dood-logo.png"
               alt=""
               width={112}
               height={112}
