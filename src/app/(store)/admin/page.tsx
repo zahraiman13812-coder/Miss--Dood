@@ -1,4 +1,5 @@
 "use client";
+import DeliveryEditor from "@/features/dashboard/DeliveryEditor";
 import {useEffect,useState} from "react";
 import Link from "next/link";
 import {productPrice} from "@/data/mock/latestProducts";
@@ -24,5 +25,5 @@ export default function AdminPage(){const [products,setProducts]=useState<P[]>([
 <label>موجودی<input name="stock" type="number" min="0" max="1000000" step="1" required defaultValue="0" className={field}/></label>
 <label className="sm:col-span-2">توضیحات<textarea name="description" maxLength={3000} className={field}/></label>
 <label className="sm:col-span-2">تصویر (/images/...)<input name="image" className={field} placeholder="/images/products/example.webp"/></label>
-<button disabled={busy} className="rounded-xl bg-accent p-3 text-on-accent sm:col-span-2">ثبت محصول</button></form></section><SupportDesk admin/></>}</main>;
+<button disabled={busy} className="rounded-xl bg-accent p-3 text-on-accent sm:col-span-2">ثبت محصول</button></form></section><DeliveryEditor/><SupportDesk admin/></>}</main>;
 }

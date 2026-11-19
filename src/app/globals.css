@@ -1,6 +1,6 @@
 @import "tailwindcss";
 @import "../styles/theme.css";
-body { font-family: Tahoma, Arial, sans-serif; }
+body { font-family: Tahoma, Arial, sans-serif; background: radial-gradient(ellipse 48vw 52vh at 0% 18%, rgba(125,26,42,.09), transparent 72%),var(--color-page); }
 button, summary { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--color-focus); outline-offset: 3px; }
 dialog { margin: 0; inset: 0 0 auto auto; width: min(24rem,100%); height: 100dvh; max-height: 100dvh; max-width: 100%; }
@@ -35,4 +35,17 @@ img, svg, video { max-width: 100%; }
 #main-content, #main-content > main { width:100%; min-width:0; }
 @media (max-width: 420px) {
   #main-content { overflow-x:clip; }
+}
+
+/* MISS DOOD: deep burgundy complements gold, without competing with primary CTAs. */
+::selection { color: #fff2d8; background: #872d39; }
+:root { accent-color: #a33b45; }
+a, button, summary { -webkit-tap-highlight-color: rgba(158,52,56,.22); }
+html { scrollbar-color: #986b45 #120c0a; }
+input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #f7e7c8 !important;
+  -webkit-box-shadow: 0 0 0 1000px #18120e inset !important;
+  box-shadow: 0 0 0 1000px #18120e inset !important;
+  caret-color: #e4bf76;
+  transition: background-color 9999s ease-in-out 0s;
 }

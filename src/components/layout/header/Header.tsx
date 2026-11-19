@@ -37,7 +37,6 @@ function SearchForm({ focus = false, close }: { focus?: boolean; close?: () => v
 }
 export default function Header() {
   const signedIn = useSignedInEmail();
-  const accountLabel = signedIn ? "حساب کاربری" : "ورود کاربر";
   const count = Object.values(useCart()).reduce((sum, qty) => sum + qty, 0).toLocaleString("fa-IR");
   const path = usePathname();
   const [open, setOpen] = useState<"categories" | "search" | null>(null);
@@ -59,7 +58,7 @@ export default function Header() {
   const close = () => { setOpen(null); drawer.current?.close(); };
   const navLinks = [...pages, ["/orders", "پیگیری سفارش"]].map(([href, label]) => <Link key={href} href={href} onClick={close} aria-current={path === href ? "page" : undefined}
     className="py-3 transition hover:text-accent aria-[current=page]:text-accent aria-[current=page]:underline underline-offset-8">{label}</Link>);
-  return <header ref={header} className="sticky top-0 z-50 shrink-0 border-b border-line bg-header/95 text-sm backdrop-blur-xl">
+  return <header ref={header} className="sticky top-0 z-50 shrink-0 border-b border-line bg-header/95 text-sm backdrop-blur-xl shadow-[0_1px_0_rgba(139,45,56,.65)]">
     <div className="mx-auto grid max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 sm:px-8 xl:flex xl:justify-between xl:gap-4">
       <button className={action + " justify-self-start xl:hidden"} aria-label="باز کردن منو" onClick={() => { if (!drawer.current?.open) drawer.current?.showModal(); }}><Menu/></button>
       <Link href="/" onClick={close} aria-label="میس دود، صفحه اصلی"><Image src="/brand/miss-dood-logo.jpg" alt="MISS DOOD" width={112} height={112} priority className="size-16 object-contain sm:size-20 xl:size-28"/></Link>
@@ -75,7 +74,7 @@ export default function Header() {
           <button ref={searchButton} aria-label="جست‌وجو" aria-expanded={open === "search"} className={action} onClick={() => setOpen(open === "search" ? null : "search")}><Search size={21}/></button>
           {open === "search" && <div className="absolute left-0 top-full mt-3 w-[min(27rem,90vw)] rounded-2xl border border-line bg-[#11100d] p-3 shadow-2xl"><SearchForm focus close={close}/></div>}
         </div>
-        <Link href={signedIn ? "/account" : "/login"} onClick={close} className={action + " hidden border border-line px-3 xl:inline-flex"}><UserRound size={19}/>{accountLabel}</Link>
+        <Link href={signedIn ? "/account" : "/login"} onClick={close} aria-label={signedIn ? "حساب کاربری" : "ورود یا ثبت‌نام"} title={signedIn ? "حساب کاربری" : "ورود یا ثبت‌نام"} className={action + " border border-line px-2 text-accent"}><UserRound size={21}/></Link>
         <Link href="/cart" onClick={close} aria-label={`سبد خرید، ${count} کالا`} className={action + " border border-line px-2 text-accent"}><ShoppingBag size={19}/><span>{count}</span></Link>
       </div>
     </div>
@@ -85,7 +84,7 @@ export default function Header() {
       <nav aria-label="منوی موبایل" className="mt-5 flex flex-col gap-2">
         <details className="border-b border-line pb-3"><summary className="cursor-pointer py-3 font-bold text-accent">دسته‌بندی کالاها</summary><div className="pt-3"><CategoryLinks close={close}/></div></details>
         {navLinks}
-        <Link href={signedIn ? "/account" : "/login"} onClick={close} className="flex items-center gap-2 py-3"><UserRound size={18}/>{accountLabel}</Link>
+        <Link href={signedIn ? "/account" : "/login"} onClick={close} aria-label={signedIn ? "حساب کاربری" : "ورود یا ثبت‌نام"} className="flex size-12 items-center justify-center rounded-xl border border-line text-accent"><UserRound size={21}/></Link>
       </nav>
     </dialog>
   </header>;

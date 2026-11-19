@@ -5,7 +5,7 @@ import { bad, errorResponse, noStore, sameOrigin } from "@/lib/http";
 
 type Address = {
   id: string; title: string; recipient_name: string; phone: string;
-  city: string; address: string; postal_code: string; is_default: boolean;
+  city: string; province:string; building:string; unit:string; address: string; postal_code: string; is_default: boolean; latitude: number | null; longitude: number | null; preferred_shipping_method: "post"|"express"|"pickup";
 };
 type AddressInput = Omit<Address, "id">;
 export const runtime = "nodejs";
@@ -17,13 +17,24 @@ function parseInput(input: unknown): AddressInput | null {
   const recipient_name = typeof data.recipient_name === "string" ? data.recipient_name.trim() : "";
   const phone = typeof data.phone === "string" ? data.phone.trim() : "";
   const city = typeof data.city === "string" ? data.city.trim() : "";
+  const province = typeof data.province === "string" ? data.province.trim() : "";
+  const building = typeof data.building === "string" ? data.building.trim() : "";
+  const unit = typeof data.unit === "string" ? data.unit.trim() : "";
   const address = typeof data.address === "string" ? data.address.trim() : "";
   const postal_code = typeof data.postal_code === "string" ? data.postal_code.trim() : "";
+  const preferred_shipping_method = data.preferred_shipping_method ?? "post";
+  if (preferred_shipping_method !== "post" && preferred_shipping_method !== "express" && preferred_shipping_method !== "pickup") return null;
+  if (preferred_shipping_method !== "post" && city.replace(/\s/g,"") !== "تهران") return null;
+  const latitude = data.latitude === null || data.latitude === undefined ? null : data.latitude;
+  const longitude = data.longitude === null || data.longitude === undefined ? null : data.longitude;
+  const coordsValid = (latitude === null && longitude === null) ||
+    (typeof latitude === "number" && typeof longitude === "number" && Number.isFinite(latitude) && Number.isFinite(longitude) && latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180);
+  if (!coordsValid) return null;
   if (!title || title.length > 80 || !recipient_name || recipient_name.length > 120 ||
-    !/^\+?[0-9۰-۹٠-٩ \-]{8,25}$/.test(phone) || !city || city.length > 120 ||
+    !/^\+?[0-9۰-۹٠-٩ \-]{8,25}$/.test(phone) || !city || city.length > 120 || !province || province.length > 80 || building.length > 40 || unit.length > 40 ||
     address.length < 6 || address.length > 1000 || postal_code.length > 20 ||
     (postal_code.length > 0 && !/^[0-9۰-۹٠-٩\- ]+$/.test(postal_code))) return null;
-  return { title, recipient_name, phone, city, address, postal_code, is_default: data.is_default === true };
+  return { title, recipient_name, phone, city, province, building, unit, address, postal_code, is_default: data.is_default === true, latitude: latitude as number|null, longitude: longitude as number|null, preferred_shipping_method };
 }
 
 export async function GET() {
@@ -31,7 +42,7 @@ export async function GET() {
     const user = await currentUser();
     if (!user) return bad("AUTH_REQUIRED", 401);
     const result = await db().query<Address>(
-      "SELECT id,title,recipient_name,phone,city,address,postal_code,is_default FROM user_addresses WHERE user_id=$1 ORDER BY is_default DESC, created_at DESC",
+      "SELECT id,title,recipient_name,phone,city,province,building,unit,address,postal_code,is_default,latitude,longitude,preferred_shipping_method FROM user_addresses WHERE user_id=$1 ORDER BY is_default DESC, created_at DESC",
       [user.id]
     );
     return NextResponse.json({ addresses: result.rows }, { headers: noStore });
@@ -55,10 +66,10 @@ export async function POST(request: NextRequest) {
       const first = count.rows[0]?.count === 0;
       if (data.is_default || first) await client.query("UPDATE user_addresses SET is_default=false WHERE user_id=$1", [user.id]);
       const inserted = await client.query<Address>(
-        `INSERT INTO user_addresses (user_id,title,recipient_name,phone,city,address,postal_code,is_default)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-         RETURNING id,title,recipient_name,phone,city,address,postal_code,is_default`,
-        [user.id, data.title, data.recipient_name, data.phone, data.city, data.address, data.postal_code, data.is_default || first]
+        `INSERT INTO user_addresses (user_id,title,recipient_name,phone,city,province,building,unit,address,postal_code,is_default,latitude,longitude,preferred_shipping_method)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+         RETURNING id,title,recipient_name,phone,city,province,building,unit,address,postal_code,is_default,latitude,longitude,preferred_shipping_method`,
+        [user.id, data.title, data.recipient_name, data.phone, data.city, data.province, data.building, data.unit, data.address, data.postal_code, data.is_default || first, data.latitude, data.longitude, data.preferred_shipping_method]
       );
       return inserted.rows[0];
     });
@@ -87,10 +98,10 @@ export async function PATCH(request: NextRequest) {
       if (!exists.rowCount) return null;
       if (data.is_default) await client.query("UPDATE user_addresses SET is_default=false WHERE user_id=$1", [user.id]);
       const updated = await client.query<Address>(
-        `UPDATE user_addresses SET title=$3,recipient_name=$4,phone=$5,city=$6,address=$7,postal_code=$8,
-         is_default=$9,updated_at=now() WHERE user_id=$1 AND id=$2
-         RETURNING id,title,recipient_name,phone,city,address,postal_code,is_default`,
-        [user.id, input.id, data.title, data.recipient_name, data.phone, data.city, data.address, data.postal_code, data.is_default]
+        `UPDATE user_addresses SET title=$3,recipient_name=$4,phone=$5,city=$6,province=$7,building=$8,unit=$9,address=$10,postal_code=$11,
+         is_default=$12,latitude=$13,longitude=$14,preferred_shipping_method=$15,updated_at=now() WHERE user_id=$1 AND id=$2
+         RETURNING id,title,recipient_name,phone,city,province,building,unit,address,postal_code,is_default,latitude,longitude,preferred_shipping_method`,
+        [user.id, input.id, data.title, data.recipient_name, data.phone, data.city, data.province, data.building, data.unit, data.address, data.postal_code, data.is_default, data.latitude, data.longitude, data.preferred_shipping_method]
       );
       return updated.rows[0];
     });

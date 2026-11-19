@@ -39,7 +39,9 @@ export default function LoginPage() {
       const result = await response.json();
       if (!response.ok) {
         const messages: Record<string, string> = { INVALID_EMAIL: "آدرس ایمیل معتبر نیست.", INVALID_NAME: "نام و نام خانوادگی را وارد کنید.", ACCOUNT_EXISTS: "این ایمیل قبلاً ثبت‌نام کرده است؛ وارد حساب شوید.", ACCOUNT_NOT_FOUND: "حسابی با این ایمیل پیدا نشد؛ ابتدا ثبت‌نام کنید.", OTP_COOLDOWN: "برای ارسال مجدد کد کمی صبر کنید.", OTP_DAILY_LIMIT: "تعداد درخواست کد امروز به سقف مجاز رسیده است.", EMAIL_NOT_CONFIGURED: "تنظیمات ارسال ایمیل در Vercel کامل نیست؛ متغیرهای Resend را بررسی کنید.",
-          EMAIL_SEND_FAILED: "Resend ارسال را رد کرد. در حالت آزمایشی گیرنده باید همان ایمیل تأییدشده حساب Resend باشد و EMAIL_FROM برابر onboarding@resend.dev باشد." };
+          EMAIL_SEND_FAILED: "ارسال ایمیل انجام نشد. لاگ Vercel و وضعیت Resend را بررسی کنید.",
+          RESEND_ACCESS_DENIED: "Resend دسترسی ارسال را رد کرده است. با آدرس آزمایشی فقط به ایمیل صاحب حساب Resend می‌توانید کد بفرستید؛ API Key را هم بررسی کنید.",
+          RESEND_SENDER_INVALID: "آدرس فرستنده در Resend معتبر نیست؛ EMAIL_FROM را بررسی کنید." };
         throw new Error(messages[result.error] ?? "ارسال کد انجام نشد. دوباره تلاش کنید.");
       }
       setStage("verify"); setCode(Array(digitsCount).fill("")); setSeconds(60);

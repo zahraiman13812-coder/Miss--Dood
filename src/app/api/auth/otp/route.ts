@@ -21,7 +21,8 @@ function safeEqual(a: string, b: string) {
 
 async function sendEmail(to: string, code: string) {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM;
+  const sender = process.env.EMAIL_FROM?.trim();
+  const from = sender && !sender.includes("<") ? `MISS DOOD <${sender}>` : sender;
   if (!apiKey || !from) throw new Error("EMAIL_NOT_CONFIGURED");
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -38,6 +39,8 @@ async function sendEmail(to: string, code: string) {
   if (!response.ok) {
     const details = await response.text().catch(() => "");
     console.error("Resend delivery failed", response.status, details.slice(0, 500));
+    if (response.status === 401 || response.status === 403) throw new Error("RESEND_ACCESS_DENIED");
+    if (response.status === 422) throw new Error("RESEND_SENDER_INVALID");
     throw new Error("EMAIL_DELIVERY_FAILED");
   }
 }
@@ -92,6 +95,8 @@ export async function POST(request: NextRequest) {
       } catch (error) {
         await db().query("UPDATE email_otp_challenges SET consumed_at=now() WHERE email=$1", [email]);
         if (error instanceof Error && error.message === "EMAIL_NOT_CONFIGURED") return bad("EMAIL_NOT_CONFIGURED", 503);
+        if (error instanceof Error && error.message === "RESEND_ACCESS_DENIED") return bad("RESEND_ACCESS_DENIED", 503);
+        if (error instanceof Error && error.message === "RESEND_SENDER_INVALID") return bad("RESEND_SENDER_INVALID", 503);
         return bad("EMAIL_SEND_FAILED", 503);
       }
       return NextResponse.json({ ok: true }, { headers: noStore });

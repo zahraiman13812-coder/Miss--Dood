@@ -7,7 +7,7 @@ import PrintButton from "@/features/account/PrintButton";
 type Order = {
   id: string; created_at: string; status: string; recipient_name: string;
   recipient_phone: string; shipping_city: string; shipping_address: string;
-  subtotal: number; shipping_fee: number; total: number; note: string | null;
+  subtotal: number; shipping_fee: number; total: number; note: string | null; postal_code:string; shipping_province:string; building:string; unit:string; shipping_method:string; latitude:number|null; longitude:number|null;
 };
 type Item = { product_name: string; quantity: number; unit_price: number; amount: number };
 const price = (n: number) => `${n.toLocaleString("fa-IR")} تومان`;
@@ -23,7 +23,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const orderResult = await db().query<Order>(`
     SELECT id,created_at,status,recipient_name,recipient_phone,shipping_city,shipping_address,
-           subtotal::float8 AS subtotal,shipping_fee::float8 AS shipping_fee,total::float8 AS total,note
+           subtotal::float8 AS subtotal,shipping_fee::float8 AS shipping_fee,total::float8 AS total,note,postal_code,shipping_province,building,unit,shipping_method,latitude,longitude
     FROM orders WHERE id=$1 AND user_id=$2`, [id, user.id]);
   const order = orderResult.rows[0];
   if (!order) notFound();
@@ -49,7 +49,10 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
       <section className="mb-6 grid gap-4 text-sm sm:grid-cols-2">
         <div><h2 className="mb-2 font-black">مشخصات خریدار</h2><p>{user.full_name || user.email}</p><p dir="ltr" className="text-right sm:text-right">{user.email}</p></div>
         <div><h2 className="mb-2 font-black">تحویل‌گیرنده</h2><p>{order.recipient_name} — {order.recipient_phone}</p>
-          <p>{order.shipping_city}، {order.shipping_address}</p></div>
+          <p>{order.shipping_province}، {order.shipping_city}، {order.shipping_address} {order.building?`، پلاک ${order.building}`:""} {order.unit?`، واحد ${order.unit}`:""}</p>
+          <p>روش تحویل: {({pickup:"حضوری",express:"اکسپرس تهران",post:"پست"} as Record<string,string>)[order.shipping_method]??order.shipping_method}</p>
+          {order.postal_code&&<p>کد پستی: {order.postal_code}</p>}
+          {order.latitude!==null&&order.longitude!==null&&<p><a className="text-[#ecc680] underline" target="_blank" rel="noopener noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${order.latitude},${order.longitude}`}>نمایش موقعیت روی نقشه</a></p>}</div>
       </section>
       <div className="overflow-x-auto rounded-xl border border-[#967741]/40 print:border-gray-300">
         <table className="w-full min-w-[520px] border-collapse text-sm">
