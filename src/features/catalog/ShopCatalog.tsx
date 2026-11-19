@@ -1,84 +1,114 @@
 "use client";
+
 import Image from "next/image";
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { Heart, Search, RefreshCw } from "lucide-react";
+import { Heart, Search, RefreshCw, ArrowLeft, SlidersHorizontal, Sparkles, PackageSearch, X } from "lucide-react";
 import { budgets } from "@/components/home/BudgetLinks";
 import { useStore, refreshCatalog } from "@/features/store/useStore";
-
 import { brands } from "@/data/brands";
-import { categories } from "@/data/navigation";
+import { categories, categoryBrands } from "@/data/navigation";
 import { decorProductSlugs } from "@/data/decorProducts";
 import ProductCard from "@/features/catalog/ProductCard";
-
 import FilterPanel from "@/features/catalog/FilterPanel";
 
+type Params = Record<string,string|string[]|undefined>;
 const departments = [...categories, ["decor", "محصولات تزئینی"] as const];
-const field = "mt-2 block min-h-11 w-full rounded-xl border border-line bg-header px-3 py-2 text-sm text-content";
 const normalize = (s: string) => s.normalize("NFKC").toLowerCase().replace(/ي/g,"ی").replace(/ك/g,"ک").replace(/[\s\u200c]+/g," ").trim();
-type Params = Record<string, string | string[] | undefined>;
+const brandByCategory = categoryBrands as Record<string, readonly (readonly [string,string])[]>;
+const select = "md-control mt-2 block text-sm";
+const SIZE = 12;
 
-export default function ShopCatalog({params}: {params: Params}) {
-  const {products:latestProducts,stock,catalogStatus}=useStore();
-  function value(key: string) {
-    const input = params[key];
-    return (Array.isArray(input) ? input[0] : input)?.trim() || "";
-  }
-  const category = departments.find(([key]) => key === value("category"));
-  const brand = brands.find(b => b.slug === value("brand"));
-  if ((value("category") && !category) || (value("brand") && !brand)) notFound();
-  const budget = budgets.find(b => b.key === value("budget"));
-  const query = value("q");
-  const sort = value("sort");
-  const inStock = value("available") === "1";
-  const tokens = normalize(query).split(" ").filter(Boolean);
-  const products = latestProducts.filter(p => {
-    const label = categories.find(([slug]) => slug === p.category)?.[1];
-    const keywords = normalize([p.name, p.description, label, brands.find(b=>b.slug===p.brand)?.name].join(" "));
-    return (!category || (category[0] === "decor" ? decorProductSlugs.has(p.slug) : category[0] === p.category)) &&
-      (!brand || brand.slug===p.brand) &&
-      (!inStock || (stock[p.slug] ?? 0) > 0) &&
-      (!budget || (p.priceToman !== null && p.priceToman >= budget.min && p.priceToman < budget.max)) &&
-      tokens.every(word => keywords.includes(word));
+export default function ShopCatalog({params}:{params:Params}) {
+  const {products:allProducts, stock, catalogStatus} = useStore();
+  const value = (key:string) => {
+    const item = params[key];
+    return (Array.isArray(item) ? item[0] : item)?.trim() || "";
+  };
+  const category = departments.find(([id]) => id === value("category"));
+  const rawBrand = value("brand");
+  const brand = brands.find(b => b.slug === rawBrand);
+  const q = value("q"), budget = budgets.find(b=>b.key===value("budget"));
+  const sort = value("sort"), available = value("available") === "1";
+  const page = Math.max(1, Math.min(10000, Number.parseInt(value("page"),10) || 1));
+  const tokens = normalize(q).split(" ").filter(Boolean);
+  const chosenCategory = category?.[0] || "";
+  const options = chosenCategory && chosenCategory!=="decor"
+    ? (brandByCategory[chosenCategory] || []).map(([slug, name])=>({slug,name}))
+    : brands.map(({slug,name})=>({slug,name}));
+  const selectedBrandName = brand?.name || rawBrand;
+  const data = allProducts.filter(product => {
+    const categoryTitle = categories.find(([id])=>id===product.category)?.[1];
+    const brandTitle = brands.find(b=>b.slug===product.brand)?.name || "";
+    const matchingText = normalize([product.name,product.description,categoryTitle,brandTitle].join(" "));
+    return (!category || (chosenCategory==="decor"? decorProductSlugs.has(product.slug) : product.category===chosenCategory)) &&
+      (!rawBrand || product.brand===rawBrand) &&
+      (!available || (stock[product.slug] || 0)>0) &&
+      (!budget || (product.priceToman!==null && product.priceToman>=budget.min && product.priceToman<budget.max)) &&
+      tokens.every(token=>matchingText.includes(token));
   });
-  if (sort === "low" || sort === "high") products.sort((a,b) => {
-    if (a.priceToman === null) return b.priceToman === null ? 0 : 1;
-    if (b.priceToman === null) return -1;
-    return sort === "low" ? a.priceToman - b.priceToman : b.priceToman - a.priceToman;
+  if (sort==="low" || sort==="high") data.sort((a,b) => {
+    if (a.priceToman===null) return b.priceToman===null?0:1;
+    if (b.priceToman===null) return -1;
+    return sort==="low"?a.priceToman-b.priceToman:b.priceToman-a.priceToman;
   });
-  if(sort === "az") products.sort((a,b) => a.name.localeCompare(b.name,"fa"));
-  const title = brand ? 'محصولات ' + brand.name : category?.[1] || (query ? "نتایج جست‌وجو" : "فروشگاه میس دود");
-  const active = [category?.[1],brand?.name,budget?.label,query,inStock ? "فقط کالاهای موجود" : ""].filter(Boolean);
-  return <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-8">
-    <nav aria-label="مسیر صفحه" className="mb-4 flex gap-3 text-sm text-muted"><Link href="/">خانه</Link><span>/</span><Link href="/shop">فروشگاه</Link></nav>
-    <header className="relative isolate flex min-h-44 items-center overflow-hidden rounded-3xl border border-line bg-header px-6 py-9 sm:px-10">
-      <Image src="/images/hero/miss-dood-2.webp" alt="" fill priority sizes="100vw" className="-z-20 object-cover object-center"/>
-      <div className="absolute inset-0 -z-10 bg-linear-to-l from-header via-header/90 to-header/40"/>
-      <div><h1 className="text-3xl font-bold text-content sm:text-4xl">{title}</h1>
-        <Link href="/favorites" className="mt-4 inline-flex items-center gap-2 rounded-full border border-accent/60 bg-header/80 px-4 py-2 text-sm text-accent"><Heart size={16}/>علاقه‌مندی‌های من</Link></div>
-    </header>
-    <div className="mt-5 grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[16rem_minmax(0,1fr)]">
+  if(sort==="az") data.sort((a,b)=>a.name.localeCompare(b.name,"fa"));
+  const pages = Math.ceil(data.length/SIZE);
+  const validPage = Math.max(1, Math.min(pages || 1,page));
+  const visible = data.slice((validPage-1)*SIZE,validPage*SIZE);
+  const currentParams = new URLSearchParams();
+  for (const key of ["category","brand","q","budget","sort","available"]) if(value(key)) currentParams.set(key,value(key));
+  const href = (remove?:string, nextPage?:number) => {
+    const p=new URLSearchParams(currentParams);
+    if(remove)p.delete(remove);
+    if(nextPage && nextPage>1)p.set("page",String(nextPage));
+    return `/shop${p.size?`?${p}`:""}`;
+  };
+  const filters = [
+    ["category", category?.[1] || ""], ["brand",rawBrand?selectedBrandName:""],
+    ["q",q], ["budget",budget?.label||""], ["available",available?"فقط موجودها":""]
+  ].filter(([,label])=>Boolean(label));
+  const title = rawBrand?`محصولات ${selectedBrandName}`:category?.[1] || (q?"نتایج جست‌وجو":"فروشگاه میس دود");
+
+  return <main className="mx-auto w-full max-w-[1370px] px-3 py-6 text-content sm:px-6 lg:px-8 lg:py-9">
+    <nav aria-label="مسیر صفحه" className="mb-5 flex flex-wrap items-center gap-2 text-sm text-muted"><Link href="/" className="hover:text-accent">خانه</Link><span>/</span><Link href="/shop" className="hover:text-accent">فروشگاه</Link>{category&&<><span>/</span><span className="text-accent">{category[1]}</span></>}</nav>
+    <section className="relative isolate overflow-hidden rounded-[30px] border border-[#805630] bg-[#120e0d] px-6 py-10 shadow-[0_15px_50px_rgba(0,0,0,.35)] sm:px-10 lg:py-12">
+      <Image src="/images/hero/miss-dood-2.webp" alt="" fill priority sizes="(min-width:1370px) 1370px,100vw" className="-z-20 object-cover opacity-35"/>
+      <div className="absolute inset-0 -z-10 bg-gradient-to-l from-[#100c0d] via-[#160d0e]/95 to-[#1d1116]/35"/>
+      <div className="mb-3 flex items-center gap-2 text-xs font-bold tracking-[.25em] text-[#dbb879]"><Sparkles size={15}/> MISS DOOD COLLECTION</div>
+      <h1 className="max-w-2xl text-3xl font-black leading-snug text-[#faf0dc] sm:text-4xl">{title}</h1>
+      <p className="mt-3 max-w-xl text-sm leading-8 text-[#d4c3ae]">محصولات را بر اساس دسته، برند، قیمت و وضعیت موجودی پیدا کنید.</p>
+      <div className="mt-6 flex flex-wrap gap-3">
+        <Link href="/shop" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#af8145] bg-[#281a16] px-4 text-sm font-bold text-[#f2d18a] transition hover:bg-[#48222b]">همه محصولات <ArrowLeft size={17}/></Link>
+        <Link href="/favorites" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#745439] bg-black/60 px-4 text-sm font-bold text-[#f5dfb3] hover:border-[#e6c47b]"><Heart size={17}/> علاقه‌مندی‌های من</Link>
+      </div>
+    </section>
+    <div className="mt-7 grid items-start gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
       <FilterPanel>
         <form action="/shop" key={JSON.stringify(params)} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-          <label className="text-sm text-muted">نام کالا<input name="q" type="search" className={field} defaultValue={query} placeholder="مثلاً فندک"/></label>
-          <label className="text-sm text-muted">دسته‌بندی<select name="category" className={field} defaultValue={category?.[0] || ""}><option value="">همه دسته‌ها</option>{departments.map(([key,label])=><option value={key} key={key}>{label}</option>)}</select></label>
-          <label className="text-sm text-muted">برند<select name="brand" className={field} defaultValue={brand?.slug || ""}><option value="">همه برندها</option>{brands.map(b=><option key={b.slug} value={b.slug}>{b.name}</option>)}</select></label>
-          <label className="text-sm text-muted">محدوده قیمت<select name="budget" className={field} defaultValue={budget?.key || ""}><option value="">همه قیمت‌ها</option>{budgets.map(b=><option key={b.key} value={b.key}>{b.label}</option>)}</select></label>
-          <label className="text-sm text-muted">مرتب‌سازی<select name="sort" className={field} defaultValue={sort}><option value="">ترتیب کاتالوگ</option><option value="low">ارزان‌ترین</option><option value="high">گران‌ترین</option><option value="az">نام کالا (الفبا)</option></select></label>
-          <label className="flex min-h-11 items-center gap-3 rounded-xl border border-line px-3 text-sm text-content"><input type="checkbox" name="available" value="1" defaultChecked={inStock} className="size-4 accent-accent"/>فقط کالاهای موجود</label>
-          <button className="rounded-xl bg-accent px-4 py-3 font-bold text-on-accent">نمایش نتایج</button>
+          <label className="block text-sm font-bold text-[#e7d1a9]">جست‌وجوی کالا<input name="q" type="search" className="md-control mt-2 block" defaultValue={q} placeholder="نام محصول یا برند…" /></label>
+          <label className="block text-sm font-bold text-[#e7d1a9]">دسته‌بندی<select name="category" className={select} defaultValue={chosenCategory}><option value="">تمام دسته‌ها</option>{departments.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
+          <label className="block text-sm font-bold text-[#e7d1a9]">برند<select name="brand" className={select} defaultValue={rawBrand}><option value="">تمام برندها</option>{options.map(({slug,name})=><option key={slug} value={slug}>{name}</option>)}{rawBrand&&!options.some(b=>b.slug===rawBrand)&&<option value={rawBrand}>{selectedBrandName}</option>}</select></label>
+          <label className="block text-sm font-bold text-[#e7d1a9]">محدوده قیمت<select name="budget" className={select} defaultValue={budget?.key||""}><option value="">همه قیمت‌ها</option>{budgets.map(b=><option key={b.key} value={b.key}>{b.label}</option>)}</select></label>
+          <label className="block text-sm font-bold text-[#e7d1a9]">ترتیب نمایش<select name="sort" className={select} defaultValue={sort}><option value="">پیش‌فرض</option><option value="low">کمترین قیمت</option><option value="high">بیشترین قیمت</option><option value="az">نام محصول (الفبا)</option></select></label>
+          <label className="flex min-h-12 items-center gap-3 rounded-xl border border-[#62482f] bg-[#17120f] px-3 text-sm font-bold text-[#f0ddb7]"><input name="available" type="checkbox" value="1" defaultChecked={available} className="size-5 accent-[#d9b570]"/> فقط کالاهای موجود</label>
+          <button className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[#e4c078] bg-gradient-to-b from-[#deb974] to-[#ad8649] px-4 font-black text-[#180f0c] transition hover:brightness-110"><SlidersHorizontal size={18}/> اعمال فیلترها</button>
+          <Link href="/shop" className="text-center text-xs font-bold text-[#c9b59a] underline-offset-4 hover:text-[#efce8b] hover:underline">پاک کردن همه فیلترها</Link>
         </form>
       </FilterPanel>
-      <section aria-label="نتایج محصولات" aria-busy={catalogStatus==="loading"}>
-        {catalogStatus === "loading" && <p role="status" className="mb-4 rounded-xl border border-line bg-panel px-4 py-3 text-sm">در حال دریافت کالاها و قیمت‌های به‌روز از فروشگاه…</p>}
-        {catalogStatus === "error" && <div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-panel px-4 py-3"><p className="text-sm">ارتباط با کاتالوگ برقرار نشد. قیمت و موجودی تا زمان اتصال نمایش داده نمی‌شود.</p><button type="button" onClick={()=>void refreshCatalog(true)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-accent px-3 text-sm text-accent"><RefreshCw size={16}/>تلاش مجدد</button></div>}
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
-          <h2 className="text-xl font-bold">محصولات <span className="ms-1 text-sm font-normal text-muted">({products.length.toLocaleString("fa-IR")})</span></h2>
-          {(active.length > 0 || sort) && <Link href="/shop" className="text-sm text-accent">پاک‌کردن فیلترها</Link>}
+      <section aria-label="نتایج محصولات" aria-busy={catalogStatus==="loading"} className="min-w-0">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#63472d] bg-[#17120f] px-4 py-4 sm:px-5">
+          <h2 className="flex items-center gap-2 text-lg font-black"><PackageSearch size={21} className="text-[#e6c47b]"/> محصولات <span className="rounded-full bg-[#442126] px-3 py-1 text-sm text-[#f5dba8]">{data.length.toLocaleString("fa-IR")}</span></h2>
+          <span className="text-xs text-[#c5b195]">{data.length?`نمایش ${(validPage-1)*SIZE+1} تا ${Math.min(validPage*SIZE,data.length)} از ${data.length}`:"محصولی یافت نشد"}</span>
         </div>
-        {!!active.length && <p className="mb-4 break-words text-sm text-muted">{active.join(" · ")}</p>}
-        {catalogStatus === "ready" && products.length ? <ul className="grid gap-4 min-[36rem]:grid-cols-2 xl:grid-cols-3">{products.map(p=><li key={p.slug}><ProductCard product={p} saveable/></li>)}</ul> : catalogStatus === "ready" ?
-        <div className="grid justify-items-center gap-4 rounded-2xl border border-line bg-panel p-10 text-center"><Search className="text-accent"/><h3 className="font-bold">محصولی پیدا نشد</h3><p className="text-sm text-muted">عبارت کوتاه‌تری بنویسید یا محدودهٔ جست‌وجو را تغییر دهید.</p><Link href="/shop" className="text-accent">دیدن همهٔ محصولات</Link></div> : null}
+        {filters.length>0&&<div className="mb-5 flex flex-wrap items-center gap-2">{filters.map(([key,label])=><Link key={key} href={href(key)} className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#7f4d3d] bg-[#381b21]/65 px-3 text-xs font-bold text-[#f4d2ad] transition hover:border-[#d5a860]"><X size={13}/>{label}</Link>)}</div>}
+        {catalogStatus==="loading"&&<p role="status" className="mb-5 rounded-2xl border border-[#6e5532] bg-[#1c160e] p-4 text-sm text-[#e8d4ad]">در حال دریافت اطلاعات به‌روز فروشگاه…</p>}
+        {catalogStatus==="error"&&<div role="alert" className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#85424b] bg-[#261318] p-4"><p className="text-sm text-[#efd9d4]">کاتالوگ در دسترس نیست؛ قیمت و موجودی فعلاً نمایش داده نمی‌شود.</p><button type="button" onClick={()=>void refreshCatalog(true)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#bd9060] px-3 font-bold text-[#e6c47b]"><RefreshCw size={17}/> تلاش مجدد</button></div>}
+        {catalogStatus==="ready" && (visible.length>0 ? <ul className="grid gap-4 min-[550px]:grid-cols-2 2xl:grid-cols-3">{visible.map(product=><li key={product.slug}><ProductCard product={product} saveable/></li>)}</ul> : <div className="grid justify-items-center gap-4 rounded-[28px] border border-[#715139] bg-gradient-to-br from-[#24161a] to-[#110f0e] p-10 text-center"><Search size={34} className="text-[#e6c47b]"/><h3 className="text-xl font-black text-[#f5e8cc]">محصولی پیدا نشد</h3><p className="text-sm leading-7 text-[#c9b5a0]">برند، دسته‌بندی یا عبارت جست‌وجو را تغییر دهید.</p><Link href="/shop" className="rounded-xl bg-[#d9b371] px-5 py-3 font-extrabold text-[#1c120d]">نمایش همه محصولات</Link></div>)}
+        {catalogStatus==="ready"&&pages>1&&<nav aria-label="صفحه‌بندی محصولات" className="mt-8 flex flex-wrap items-center justify-center gap-2">
+          <Link aria-disabled={validPage===1} href={validPage===1?href():href(undefined,validPage-1)} className={`rounded-xl border px-4 py-3 text-sm font-bold ${validPage===1?'pointer-events-none border-[#493827] text-[#7a6c56]':'border-[#9c7949] text-[#e6c47b] hover:bg-[#3d2224]'}`}>قبلی</Link>
+          <span className="rounded-xl border border-[#62482f] bg-[#201612] px-4 py-3 text-sm text-[#f6dfb2]">{validPage.toLocaleString("fa-IR")} / {pages.toLocaleString("fa-IR")}</span>
+          <Link aria-disabled={validPage===pages} href={validPage===pages?href(undefined,validPage):href(undefined,validPage+1)} className={`rounded-xl border px-4 py-3 text-sm font-bold ${validPage===pages?'pointer-events-none border-[#493827] text-[#7a6c56]':'border-[#9c7949] text-[#e6c47b] hover:bg-[#3d2224]'}`}>بعدی</Link>
+        </nav>}
       </section>
     </div>
   </main>;

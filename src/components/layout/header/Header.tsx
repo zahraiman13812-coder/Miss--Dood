@@ -5,24 +5,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ChevronDown, Grid2X2, Menu, Search, ShoppingBag, UserRound, X, Sparkles } from "lucide-react";
-import { categories, pages } from "@/data/navigation";
+import { ArrowLeft, ChevronDown, Grid2X2, Menu, Search, ShoppingBag, UserRound, X } from "lucide-react";
+import { pages } from "@/data/navigation";
+import { CategoryMegaMenu, MobileCategoryMenu } from "./CategoryMegaMenu";
 
 const action = "inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl transition hover:bg-panel hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent";
-function CategoryLinks({ close }: { close: () => void }) {
-  return <div className="grid max-h-[min(70vh,34rem)] grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2 xl:grid-cols-3">
-    {categories.map(([slug, label], index) => (
-      <Link key={slug} href={`/shop?category=${slug}`} onClick={close}
-        className="group flex min-h-[76px] items-center justify-between gap-3 rounded-2xl border border-line bg-gradient-to-br from-panel to-header px-4 py-3 transition hover:-translate-y-0.5 hover:border-accent/70 hover:shadow-[0_8px_24px_rgba(0,0,0,.2)]">
-        <span className="flex min-w-0 items-center gap-3">
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-accent/25 bg-accent/10 text-xs font-black text-accent">{String(index + 1).padStart(2, "0")}</span>
-          <span className="font-extrabold text-content group-hover:text-accent">{label}</span>
-        </span>
-        <ArrowLeft size={17} className="shrink-0 text-muted transition group-hover:-translate-x-1 group-hover:text-accent"/>
-      </Link>
-    ))}
-  </div>;
-}
 function SearchForm({ focus = false, close }: { focus?: boolean; close?: () => void }) {
   return <form action="/shop" role="search" onSubmit={close}
     className="group flex min-h-14 items-center gap-2 rounded-2xl border border-line bg-page p-1.5 shadow-inner transition focus-within:border-accent/80 focus-within:ring-2 focus-within:ring-accent/15">
@@ -65,7 +52,7 @@ export default function Header() {
       <nav aria-label="منوی اصلی" className="hidden items-center gap-4 xl:flex xl:gap-7">
         <div className="relative">
           <button ref={categoryButton} aria-expanded={open === "categories"} onClick={() => setOpen(open === "categories" ? null : "categories")} className={action + " px-3 text-accent"}><Grid2X2 size={17}/>دسته‌بندی کالا<ChevronDown size={15}/></button>
-          {open === "categories" && <div className="absolute right-0 top-full mt-3 w-[min(54rem,92vw)] rounded-[26px] border border-line bg-[#11100d] p-4 shadow-[0_24px_70px_rgba(0,0,0,.55)]"><div className="mb-3 flex items-center gap-2 px-1 text-accent"><Sparkles size={16}/><span className="font-bold">دسته‌بندی‌های فروشگاه</span></div><CategoryLinks close={close}/></div>}
+          {open === "categories" && <div className="absolute right-0 top-full mt-3 rounded-[26px] shadow-[0_24px_70px_rgba(0,0,0,.55)]"><CategoryMegaMenu close={close}/></div>}
         </div>
         {navLinks}
       </nav>
@@ -82,7 +69,7 @@ export default function Header() {
       <div className="mb-5 flex items-center justify-between"><strong id="menu-title" className="text-accent">منوی فروشگاه</strong><button className={action} onClick={close} aria-label="بستن منو"><X/></button></div>
       <SearchForm close={close}/>
       <nav aria-label="منوی موبایل" className="mt-5 flex flex-col gap-2">
-        <details className="border-b border-line pb-3"><summary className="cursor-pointer py-3 font-bold text-accent">دسته‌بندی کالاها</summary><div className="pt-3"><CategoryLinks close={close}/></div></details>
+        <details className="border-b border-line pb-3"><summary className="cursor-pointer py-3 font-bold text-accent">دسته‌بندی کالاها</summary><div className="pt-3"><MobileCategoryMenu close={close}/></div></details>
         {navLinks}
         <Link href={signedIn ? "/account" : "/login"} onClick={close} aria-label={signedIn ? "حساب کاربری" : "ورود یا ثبت‌نام"} className="flex size-12 items-center justify-center rounded-xl border border-line text-accent"><UserRound size={21}/></Link>
       </nav>

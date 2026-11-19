@@ -25,6 +25,8 @@ export const categoryBrands = {
   "e-liquid": [["nasli", "نسلی"]],
   hookah: [["korno", "کرنو"], ["khalil-mamoon", "خلیل مامون"]],
   gas: [["zippo", "زیپو"]],
+  fuel: [["zippo", "زیپو"]],
+  lighters: [],
 } as const;
 
 export const pages = [["/", "صفحه اصلی"], ["/contact", "تماس با ما"], ["/about", "درباره ما"], ["/help", "راهنمای خرید"]] as const;
