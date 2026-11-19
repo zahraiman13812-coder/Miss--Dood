@@ -1,0 +1,4 @@
+@media (min-width: 64rem) {
+  .content { display: block !important; opacity: 1 !important; visibility: visible !important; transform: none !important; }
+  .content > div { overflow: visible !important; }
+}

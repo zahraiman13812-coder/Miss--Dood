@@ -1,3 +1,5 @@
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/core/accordion";
+import { ChevronRight } from "lucide-react";
 import { PackageOpen } from "lucide-react";
 import { ShippingAmount } from "@/features/store/Shipping";
 import { productPrice } from "@/data/mock/latestProducts";
@@ -10,11 +12,11 @@ export default function OrderList({orders, change}: {orders:PreviewOrder[]; chan
     <div className="flex flex-wrap items-center justify-between gap-4"><div><h3 className="font-bold">{order.items[0]?.name || "سفارش"}{order.items.length > 1 && ' و ' + number(order.items.length-1) + ' کالای دیگر'}</h3>
       <p className="mt-2 text-sm text-muted">{new Date(order.date).toLocaleDateString("fa-IR")}</p></div>
       <span className="rounded-full border border-accent/40 px-3 py-1.5 text-xs text-accent">{statuses[order.status ?? "received"]}</span></div>
-    <details className="mt-4 border-t border-line pt-3"><summary className="text-sm text-accent">جزئیات سفارش · {productPrice(order.total)}</summary>
+    <Accordion className="mt-4 border-t border-line pt-3" transition={{ type: "spring", stiffness: 120, damping: 20 }} variants={{ expanded: { opacity: 1, scale: 1 }, collapsed: { opacity: 0, scale: .7 } }}><AccordionItem value={order.id}><AccordionTrigger className="flex min-h-11 w-full items-center gap-2 text-right text-sm text-accent"><ChevronRight data-accordion-chevron size={16}/>جزئیات سفارش · {productPrice(order.total)}</AccordionTrigger><AccordionContent className="origin-right">
       <p className="my-3 break-all text-xs text-muted">شناسهٔ سفارش · <bdi>{order.id}</bdi></p>
       {order.shipping && <ShippingAmount rule={order.shipping} subtotal={order.subtotal ?? order.total-order.shipping.fee}/>}
       <ul className="divide-y divide-line">{order.items.map((item,index) => <li key={index} className="flex flex-wrap justify-between gap-2 py-2 text-sm">
-        <span>{item.name} × {number(item.quantity)}</span><span>{productPrice(item.amount)}</span></li>)}</ul></details>
+        <span>{item.name} × {number(item.quantity)}</span><span>{productPrice(item.amount)}</span></li>)}</ul></AccordionContent></AccordionItem></Accordion>
     {change && <label className="mt-4 flex flex-wrap items-center gap-3 text-sm">تغییر وضعیت<select value={order.status ?? "received"}
       onChange={e=>change(order.id,e.target.value as OrderStatus)} className="rounded-lg border border-line bg-header p-2">{Object.entries(statuses).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label>}
   </article>)}</div>;

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { ArrowLeft, Boxes, ChevronLeft, Grid2X2, Sparkles } from "lucide-react";
 import { categories, categoryBrands } from "@/data/navigation";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/core/accordion";
 
 type CategoryKey = typeof categories[number][0];
 type BrandPair = readonly [string, string];
@@ -42,17 +43,22 @@ export function CategoryMegaMenu({ close }: { close: () => void }) {
   );
 }
 
-export function MobileCategoryMenu({ close }: {close:()=>void}) {
-  return <div className="space-y-2" dir="rtl">
-    {categories.map(([key,label]) => {
-      const brands=allBrands[key] ?? [];
-      return <details key={key} className="group overflow-hidden rounded-xl border border-[#655035] bg-[#13100d] open:border-[#b3894a]">
-        <summary className="flex min-h-12 list-none items-center justify-between gap-2 px-4 font-extrabold text-[#ecd5a3] marker:hidden [&::-webkit-details-marker]:hidden">{label}<ChevronLeft size={16} className="transition group-open:-rotate-90"/></summary>
-        <div className="space-y-1 border-t border-[#493927] px-3 py-2">
-          <Link href={`/shop?category=${key}`} onClick={close} className="block rounded-lg bg-[#3d2020]/65 px-3 py-3 font-bold text-[#f1cb82]">همه محصولات {label}</Link>
-          {brands.map(([slug,name]) => <Link key={slug} href={`/shop?category=${key}&brand=${encodeURIComponent(slug)}`} onClick={close} className="block rounded-lg px-3 py-3 text-sm text-[#e1d4bd] hover:bg-[#321a20] hover:text-[#f0d18c]">{name}</Link>)}
-        </div>
-      </details>;
+export function MobileCategoryMenu({ close }: { close: () => void }) {
+  return <Accordion className="space-y-2" dir="rtl" transition={{ type: "spring", stiffness: 120, damping: 20 }}
+    variants={{ expanded: { opacity: 1, scale: 1 }, collapsed: { opacity: 0, scale: .7 } }}>
+    {categories.map(([key, label]) => {
+      const brands = allBrands[key] ?? [];
+      return <AccordionItem key={key} value={key} className="overflow-hidden rounded-xl border border-[#655035] bg-[#13100d] data-[expanded=true]:border-[#b3894a]">
+        <AccordionTrigger className="flex min-h-12 w-full items-center justify-between gap-2 px-4 text-right font-extrabold text-[#ecd5a3]">
+          {label}<ChevronLeft data-accordion-chevron size={16} />
+        </AccordionTrigger>
+        <AccordionContent className="origin-right">
+          <div className="space-y-1 border-t border-[#493927] px-3 py-2">
+            <Link href={`/shop?category=${key}`} onClick={close} className="block rounded-lg bg-[#3d2020]/65 px-3 py-3 font-bold text-[#f1cb82]">همه محصولات {label}</Link>
+            {brands.map(([slug,name]) => <Link key={slug} href={`/shop?category=${key}&brand=${encodeURIComponent(slug)}`} onClick={close} className="block rounded-lg px-3 py-3 text-sm text-[#e1d4bd] hover:bg-[#321a20] hover:text-[#f0d18c]">{name}</Link>)}
+          </div>
+        </AccordionContent>
+      </AccordionItem>;
     })}
-  </div>;
+  </Accordion>;
 }

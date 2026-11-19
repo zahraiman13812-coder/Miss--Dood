@@ -1,4 +1,5 @@
-import { Plus } from "lucide-react";
+import { ChevronRight } from "lucide-react";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/core/accordion";
 
 const questions = [
   {
@@ -22,17 +23,17 @@ export default function BuyingGuide() {
         <h2 id="guide-title" className="self-start border-s-2 border-accent ps-4 text-xl font-bold text-content sm:text-2xl">
           قبل از انتخاب
         </h2>
-        <div className="divide-y divide-line">
+        <Accordion className="divide-y divide-line" transition={{ type: "spring", stiffness: 120, damping: 20 }} variants={{ expanded: { opacity: 1, scale: 1 }, collapsed: { opacity: 0, scale: .7 } }}>
           {questions.map(({ title, answer }) => (
-            <details key={title} name="buying-guide" className="group">
-              <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 rounded-sm py-3 text-start font-semibold text-content hover:text-accent [&::-webkit-details-marker]:hidden">
+            <AccordionItem key={title} value={title}>
+              <AccordionTrigger className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 rounded-sm py-3 text-start font-semibold text-content hover:text-accent [&::-webkit-details-marker]:hidden">
                 {title}
-                <Plus size={19} aria-hidden="true" className="shrink-0 text-accent group-open:rotate-45 motion-safe:transition-transform" />
-              </summary>
-              <p className="max-w-prose pb-5 text-sm leading-8 text-muted">{answer}</p>
-            </details>
+                <ChevronRight data-accordion-chevron size={19} aria-hidden="true" className="shrink-0 text-accent" />
+              </AccordionTrigger>
+              <AccordionContent className="origin-right"><p className="max-w-prose pb-5 text-sm leading-8 text-muted">{answer}</p></AccordionContent>
+            </AccordionItem>
           ))}
-        </div>
+        </Accordion>
       </div>
     </section>
   );

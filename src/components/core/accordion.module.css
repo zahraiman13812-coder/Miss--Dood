@@ -1,0 +1,12 @@
+/* One RTL-aware, accessible accordion for all store surfaces. */
+.root { min-width: 0; }
+.trigger { cursor: pointer; text-align: start; }
+.trigger:focus-visible { outline: 2px solid #e4bf76; outline-offset: 3px; }
+.trigger svg { transition: transform 350ms cubic-bezier(.2,1.4,.35,1); }
+.trigger[data-expanded="true"] svg[data-accordion-chevron] { transform: rotate(-90deg); }
+.content { display: grid; grid-template-rows: 0fr; visibility: hidden; opacity: var(--accordion-collapsed-opacity, 0); transform: scale(var(--accordion-collapsed-scale, .7)); transform-origin: top right; transition: grid-template-rows 430ms cubic-bezier(.22,.85,.2,1), opacity 350ms ease, transform 430ms cubic-bezier(.22,1.3,.36,1), visibility 430ms; }
+.content[data-expanded="true"] { grid-template-rows: 1fr; visibility: visible; opacity: var(--accordion-expanded-opacity,1); transform: scale(var(--accordion-expanded-scale,1)); }
+.clip { min-height: 0; overflow: hidden; }
+@media (prefers-reduced-motion: reduce) {
+ .trigger svg, .content { transition-duration: 0ms !important; }
+}
