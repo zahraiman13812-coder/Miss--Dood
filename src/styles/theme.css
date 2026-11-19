@@ -6,6 +6,7 @@
   --color-content: #f4efe4;
   --color-muted: #c5beb0;
   --color-accent: #e4bf76;
+  --color-ember: #9e3438; /* restrained crimson: badges, separators, details */
   --color-on-accent: #20190d;
   --color-line: #51442d;
   --color-focus: var(--color-accent);

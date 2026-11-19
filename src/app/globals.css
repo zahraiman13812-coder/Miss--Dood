@@ -30,3 +30,9 @@ img, svg, video { max-width: 100%; }
 @media (prefers-reduced-motion: reduce) {
  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* Home / storefront: resist horizontal overflow on 320px–1024px screens. */
+#main-content, #main-content > main { width:100%; min-width:0; }
+@media (max-width: 420px) {
+  #main-content { overflow-x:clip; }
+}

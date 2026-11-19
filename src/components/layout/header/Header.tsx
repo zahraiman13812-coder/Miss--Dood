@@ -10,7 +10,7 @@ import { categories, pages } from "@/data/navigation";
 
 const action = "inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl transition hover:bg-panel hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent";
 function CategoryLinks({ close }: { close: () => void }) {
-  return <div className="grid max-h-[min(70vh,34rem)] grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3">
+  return <div className="grid max-h-[min(70vh,34rem)] grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2 xl:grid-cols-3">
     {categories.map(([slug, label], index) => (
       <Link key={slug} href={`/shop?category=${slug}`} onClick={close}
         className="group flex min-h-[76px] items-center justify-between gap-3 rounded-2xl border border-line bg-gradient-to-br from-panel to-header px-4 py-3 transition hover:-translate-y-0.5 hover:border-accent/70 hover:shadow-[0_8px_24px_rgba(0,0,0,.2)]">
@@ -50,7 +50,7 @@ export default function Header() {
     const escape = (e: KeyboardEvent) => { if (e.key === "Escape" && open) {
       (open === "search" ? searchButton : categoryButton).current?.focus(); setOpen(null);
     }};
-    const breakpoint = matchMedia("(min-width: 64rem)");
+    const breakpoint = matchMedia("(min-width: 80rem)");
     const reset = () => { drawer.current?.close(); setOpen(null); };
     breakpoint.addEventListener("change", reset);
     document.addEventListener("pointerdown", outside); document.addEventListener("keydown", escape);
@@ -60,22 +60,22 @@ export default function Header() {
   const navLinks = [...pages, ["/orders", "پیگیری سفارش"]].map(([href, label]) => <Link key={href} href={href} onClick={close} aria-current={path === href ? "page" : undefined}
     className="py-3 transition hover:text-accent aria-[current=page]:text-accent aria-[current=page]:underline underline-offset-8">{label}</Link>);
   return <header ref={header} className="sticky top-0 z-50 shrink-0 border-b border-line bg-header/95 text-sm backdrop-blur-xl">
-    <div className="mx-auto grid max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 sm:px-8 lg:flex lg:justify-between lg:gap-4">
-      <button className={action + " justify-self-start lg:hidden"} aria-label="باز کردن منو" onClick={() => { if (!drawer.current?.open) drawer.current?.showModal(); }}><Menu/></button>
-      <Link href="/" onClick={close} aria-label="میس دود، صفحه اصلی"><Image src="/brand/miss-dood-logo.jpg" alt="MISS DOOD" width={112} height={112} priority className="size-16 object-contain sm:size-20 lg:size-28"/></Link>
-      <nav aria-label="منوی اصلی" className="hidden items-center gap-4 lg:flex xl:gap-7">
+    <div className="mx-auto grid max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 sm:px-8 xl:flex xl:justify-between xl:gap-4">
+      <button className={action + " justify-self-start xl:hidden"} aria-label="باز کردن منو" onClick={() => { if (!drawer.current?.open) drawer.current?.showModal(); }}><Menu/></button>
+      <Link href="/" onClick={close} aria-label="میس دود، صفحه اصلی"><Image src="/brand/miss-dood-logo.jpg" alt="MISS DOOD" width={112} height={112} priority className="size-16 object-contain sm:size-20 xl:size-28"/></Link>
+      <nav aria-label="منوی اصلی" className="hidden items-center gap-4 xl:flex xl:gap-7">
         <div className="relative">
           <button ref={categoryButton} aria-expanded={open === "categories"} onClick={() => setOpen(open === "categories" ? null : "categories")} className={action + " px-3 text-accent"}><Grid2X2 size={17}/>دسته‌بندی کالا<ChevronDown size={15}/></button>
           {open === "categories" && <div className="absolute right-0 top-full mt-3 w-[min(54rem,92vw)] rounded-[26px] border border-line bg-[#11100d] p-4 shadow-[0_24px_70px_rgba(0,0,0,.55)]"><div className="mb-3 flex items-center gap-2 px-1 text-accent"><Sparkles size={16}/><span className="font-bold">دسته‌بندی‌های فروشگاه</span></div><CategoryLinks close={close}/></div>}
         </div>
         {navLinks}
       </nav>
-      <div className="flex items-center justify-self-end gap-2 lg:ms-auto">
-        <div className="relative hidden lg:block">
+      <div className="flex items-center justify-self-end gap-2 xl:ms-auto">
+        <div className="relative hidden xl:block">
           <button ref={searchButton} aria-label="جست‌وجو" aria-expanded={open === "search"} className={action} onClick={() => setOpen(open === "search" ? null : "search")}><Search size={21}/></button>
           {open === "search" && <div className="absolute left-0 top-full mt-3 w-[min(27rem,90vw)] rounded-2xl border border-line bg-[#11100d] p-3 shadow-2xl"><SearchForm focus close={close}/></div>}
         </div>
-        <Link href={signedIn ? "/account" : "/login"} onClick={close} className={action + " hidden border border-line px-3 lg:inline-flex"}><UserRound size={19}/>{accountLabel}</Link>
+        <Link href={signedIn ? "/account" : "/login"} onClick={close} className={action + " hidden border border-line px-3 xl:inline-flex"}><UserRound size={19}/>{accountLabel}</Link>
         <Link href="/cart" onClick={close} aria-label={`سبد خرید، ${count} کالا`} className={action + " border border-line px-2 text-accent"}><ShoppingBag size={19}/><span>{count}</span></Link>
       </div>
     </div>
