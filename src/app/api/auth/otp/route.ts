@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db, transaction } from "@/lib/db";
 import { bad, errorResponse, noStore, sameOrigin } from "@/lib/http";
 import { currentUser, hashPassword, issueSession } from "@/lib/session";
+import { consumeAuthAttempt } from "@/lib/authRateLimit";
 
 export const runtime = "nodejs";
 
@@ -37,8 +38,7 @@ async function sendEmail(to: string, code: string) {
     cache: "no-store",
   });
   if (!response.ok) {
-    const details = await response.text().catch(() => "");
-    console.error("Resend delivery failed", response.status, details.slice(0, 500));
+    console.error("Resend delivery failed", { status: response.status });
     if (response.status === 401 || response.status === 403) throw new Error("RESEND_ACCESS_DENIED");
     if (response.status === 422) throw new Error("RESEND_SENDER_INVALID");
     throw new Error("EMAIL_DELIVERY_FAILED");
@@ -52,6 +52,16 @@ export async function POST(request: NextRequest) {
     if (!body || typeof body !== "object" || Array.isArray(body)) return bad("INVALID_BODY");
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
     if (!validEmail(email)) return bad("INVALID_EMAIL");
+    // Shared PostgreSQL rate limits work across Vercel serverless instances.
+    // Per-email buckets limit OTP probing; the IP bucket also limits broad address spraying.
+    const action = body.action;
+    if (action === "send" || action === "verify") {
+      const remote = request.headers.get("x-real-ip") ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+      const allowedForEmail = await consumeAuthAttempt(`otp:${action}:${email}`, "email");
+      if (!allowedForEmail) return bad("TOO_MANY_ATTEMPTS", 429);
+      const allowedForRemote = await consumeAuthAttempt(`otp:${action}`, remote);
+      if (!allowedForRemote) return bad("TOO_MANY_ATTEMPTS", 429);
+    }
 
     if (body.action === "send") {
       const mode = body.mode === "register" ? "register" : body.mode === "login" ? "login" : null;

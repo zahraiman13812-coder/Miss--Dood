@@ -12,7 +12,9 @@
     "test:static": "node scripts/static-check.mjs",
     "test:smoke": "node scripts/smoke-check.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "npm run test:static && npm run test:smoke && npm run typecheck"
+    "test": "npm run test:static && npm run test:smoke && npm run test:security && npm run typecheck",
+    "test:security": "node scripts/security-check.mjs",
+    "config:check": "node --env-file=.env.local scripts/config-check.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

@@ -38,7 +38,7 @@ export default function LoginPage() {
       const response = await fetch("/api/auth/otp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "send", mode, email: email.trim(), name: name.trim() }) });
       const result = await response.json();
       if (!response.ok) {
-        const messages: Record<string, string> = { INVALID_EMAIL: "آدرس ایمیل معتبر نیست.", INVALID_NAME: "نام و نام خانوادگی را وارد کنید.", ACCOUNT_EXISTS: "این ایمیل قبلاً ثبت‌نام کرده است؛ وارد حساب شوید.", ACCOUNT_NOT_FOUND: "حسابی با این ایمیل پیدا نشد؛ ابتدا ثبت‌نام کنید.", OTP_COOLDOWN: "برای ارسال مجدد کد کمی صبر کنید.", OTP_DAILY_LIMIT: "تعداد درخواست کد امروز به سقف مجاز رسیده است.", EMAIL_NOT_CONFIGURED: "تنظیمات ارسال ایمیل در Vercel کامل نیست؛ متغیرهای Resend را بررسی کنید.",
+        const messages: Record<string, string> = { INVALID_EMAIL: "آدرس ایمیل معتبر نیست.", INVALID_NAME: "نام و نام خانوادگی را وارد کنید.", ACCOUNT_EXISTS: "این ایمیل قبلاً ثبت‌نام کرده است؛ وارد حساب شوید.", ACCOUNT_NOT_FOUND: "حسابی با این ایمیل پیدا نشد؛ ابتدا ثبت‌نام کنید.", OTP_COOLDOWN: "برای ارسال مجدد کد کمی صبر کنید.", TOO_MANY_ATTEMPTS: "تعداد تلاش‌ها زیاد است؛ حدود ۱۵ دقیقه بعد دوباره امتحان کنید.", OTP_DAILY_LIMIT: "تعداد درخواست کد امروز به سقف مجاز رسیده است.", EMAIL_NOT_CONFIGURED: "تنظیمات ارسال ایمیل در Vercel کامل نیست؛ متغیرهای Resend را بررسی کنید.",
           EMAIL_SEND_FAILED: "ارسال ایمیل انجام نشد. لاگ Vercel و وضعیت Resend را بررسی کنید.",
           RESEND_ACCESS_DENIED: "Resend دسترسی ارسال را رد کرده است. با آدرس آزمایشی فقط به ایمیل صاحب حساب Resend می‌توانید کد بفرستید؛ API Key را هم بررسی کنید.",
           RESEND_SENDER_INVALID: "آدرس فرستنده در Resend معتبر نیست؛ EMAIL_FROM را بررسی کنید." };
@@ -59,7 +59,7 @@ export default function LoginPage() {
       const response = await fetch("/api/auth/otp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "verify", mode, email: email.trim(), code: otp }) });
       const result = await response.json();
       if (!response.ok) {
-        const messages: Record<string, string> = { INVALID_OTP: "کد واردشده صحیح نیست.", OTP_EXPIRED: "اعتبار کد تمام شده است؛ کد جدید دریافت کنید.", OTP_ATTEMPTS_EXCEEDED: "تعداد تلاش‌ها بیش از حد مجاز است؛ کد جدید بگیرید.", OTP_NOT_FOUND: "کدی برای این ایمیل پیدا نشد؛ دوباره کد بگیرید.", ACCOUNT_EXISTS: "این ایمیل قبلاً ثبت‌نام شده است؛ وارد حساب شوید." };
+        const messages: Record<string, string> = { INVALID_OTP: "کد واردشده صحیح نیست.", OTP_EXPIRED: "اعتبار کد تمام شده است؛ کد جدید دریافت کنید.", OTP_ATTEMPTS_EXCEEDED: "تعداد تلاش‌ها بیش از حد مجاز است؛ کد جدید بگیرید.", TOO_MANY_ATTEMPTS: "تعداد تلاش‌ها زیاد است؛ حدود ۱۵ دقیقه بعد دوباره امتحان کنید.", OTP_NOT_FOUND: "کدی برای این ایمیل پیدا نشد؛ دوباره کد بگیرید.", ACCOUNT_EXISTS: "این ایمیل قبلاً ثبت‌نام شده است؛ وارد حساب شوید." };
         throw new Error(messages[result.error] ?? "تأیید کد انجام نشد. دوباره تلاش کنید.");
       }
       router.replace("/account"); router.refresh();
