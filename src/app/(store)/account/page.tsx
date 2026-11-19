@@ -1,4 +1,5 @@
 "use client";
+import { AnimatedGroup } from "@/components/core/animated-group";
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
@@ -204,7 +205,7 @@ export default function AccountPage() {
         </section>}
 
         {tab==="recommended"&&<section className={panel}><div className="mb-6"><h2 className="flex items-center gap-2 text-xl font-black"><Sparkles className="text-[#e6c47b]"/> پیشنهادهای مخصوص شما</h2><p className="mt-2 text-sm leading-7 text-[#b9a987]">{personalized?"بر اساس دسته‌بندی کالاهای موردعلاقه و سفارش‌های قبلی شما":"چون هنوز سابقه کافی ندارید، محصولات موجود و تازه‌تر را نمایش می‌دهیم."}</p></div>
-          {recommendations.length?<ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{recommendations.map(p=><li key={p.slug}><ProductCard product={p} saveable/></li>)}</ul>:<div className="rounded-xl border border-[#6e5630] p-6 text-center text-sm text-[#b9a987]">در حال حاضر کالای موجودی برای پیشنهاد نداریم.</div>}
+          {recommendations.length?<AnimatedGroup as="ul" preset="scale" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{recommendations.map(p=><li key={p.slug}><ProductCard product={p} saveable/></li>)}</AnimatedGroup>:<div className="rounded-xl border border-[#6e5630] p-6 text-center text-sm text-[#b9a987]">در حال حاضر کالای موجودی برای پیشنهاد نداریم.</div>}
         </section>}
       </div>
     </div>

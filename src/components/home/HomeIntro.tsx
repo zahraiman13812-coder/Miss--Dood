@@ -1,9 +1,12 @@
+import { BorderTrail } from "@/components/core/border-trail";
+import { GlowEffect } from "@/components/core/glow-effect";
 import Link from "next/link";
 import { ArrowLeft, Headphones, PackageSearch, Search, ShieldCheck, Truck } from "lucide-react";
 
 export default function HomeIntro() {
   return <section className="mx-auto w-full max-w-7xl min-w-0 px-3 pb-9 sm:px-6 sm:pb-12 xl:px-8" aria-labelledby="welcome-title">
     <div className="relative overflow-hidden rounded-[26px] border border-[#735931] bg-[linear-gradient(120deg,#19130d_0%,#0c0b09_68%,#1d0e0e_100%)] p-5 sm:p-8 lg:p-10">
+      <BorderTrail size={100}/>
       <div aria-hidden="true" className="pointer-events-none absolute -left-12 -top-20 size-64 rounded-full bg-[#8f242c]/10 blur-3xl"/>
       <div className="relative grid items-center gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(320px,.8fr)] lg:gap-10">
         <div className="min-w-0">
@@ -11,7 +14,7 @@ export default function HomeIntro() {
           <h1 id="welcome-title" className="max-w-2xl text-[clamp(1.5rem,3vw,2.55rem)] font-black leading-[1.6] text-[#f8eedb]">خوش آمدید به <span className="text-[#e4bf76]">میس دود</span></h1>
           <p className="mt-3 max-w-xl text-sm leading-8 text-[#c8bca7] sm:text-base">دسته‌بندی‌ها، اطلاعات محصولات و وضعیت سفارش‌های خود را در یک فضای ساده و منظم دنبال کنید.</p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <Link href="/shop" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#d2a55e] px-5 font-extrabold text-[#211508] transition hover:bg-[#e9c181]">مشاهده فروشگاه <ArrowLeft size={18}/></Link>
+            <GlowEffect><Link href="/shop" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#d2a55e] px-5 font-extrabold text-[#211508] transition hover:bg-[#e9c181]">مشاهده فروشگاه <ArrowLeft size={18}/></Link></GlowEffect>
             <Link href="/orders" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[#8b673b] bg-black/15 px-5 font-bold text-[#ead5b2] transition hover:border-[#e4bf76]">پیگیری سفارش <Truck size={18}/></Link>
           </div>
         </div>

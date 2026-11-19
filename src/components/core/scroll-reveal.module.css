@@ -1,0 +1,11 @@
+.pending {
+  opacity: 0;
+  transform: translate3d(0, 26px, 0) scale(0.985);
+  filter: blur(3px);
+}
+.revealed, .pending {
+  transition: opacity .48s ease-out, transform .48s cubic-bezier(.22, 1, .36, 1), filter .48s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pending, .revealed { opacity: 1; filter: none; transform: none; transition: none; }
+}

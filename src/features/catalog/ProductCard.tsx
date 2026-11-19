@@ -1,5 +1,5 @@
 "use client";
-import Image from "next/image";
+import { ProductImageZoom } from "@/components/core/product-image-zoom";
 import Link from "next/link";
 import { ArrowLeft, Boxes, Sparkles } from "lucide-react";
 import { productPrice, type Product } from "@/data/mock/latestProducts";
@@ -18,7 +18,7 @@ export default function ProductCard({product,saveable=false}:{product:CardProduc
  return <article className="md-card-lux group relative isolate flex h-full min-w-0 flex-col overflow-hidden rounded-[24px] text-[#f4e8d2] hover:-translate-y-1 focus-within:border-[#e6c47b]">
    <div className="relative aspect-[1.18/1] min-h-48 shrink-0 overflow-hidden bg-[radial-gradient(circle_at_center,rgba(163,87,53,.19),transparent_63%),linear-gradient(155deg,#281c16,#100e0c)]">
      <div className="pointer-events-none absolute inset-6 rounded-full border border-[#a87c45]/20"/>
-     <Image src={product.image} alt={product.name} fill sizes="(min-width:1350px) 330px,(min-width:1024px) 30vw,(min-width:560px) 48vw,95vw" className="object-contain p-5 transition duration-500 motion-reduce:transition-none group-hover:scale-[1.055]"/>
+     <ProductImageZoom src={product.image} alt={product.name} sizes="(min-width:1350px) 330px,(min-width:1024px) 30vw,(min-width:560px) 48vw,95vw" className="p-5"/>
      <div className="absolute inset-x-3 top-3 z-10 flex items-start justify-between gap-2 pointer-events-none">
        <span className="inline-flex items-center gap-1 rounded-full border border-[#86633c] bg-[#110d0c]/90 px-3 py-1.5 text-[11px] font-bold text-[#edd2a0]"><Sparkles size={12}/>{category}</span>
        {saveable&&<div className="pointer-events-auto"><FavoriteButton slug={product.slug} name={product.name}/></div>}

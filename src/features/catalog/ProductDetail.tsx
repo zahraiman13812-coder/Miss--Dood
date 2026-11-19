@@ -1,8 +1,9 @@
 "use client";
+import { AnimatedGroup } from "@/components/core/animated-group";
 import { useState } from "react";
 import { useStore, refreshCatalog } from "@/features/store/useStore";
 import { brands } from "@/data/brands";
-import Image from "next/image";
+import { ProductImageZoom } from "@/components/core/product-image-zoom";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, BadgeCheck, CheckCircle2, ChevronLeft, Heart, PackageSearch, RefreshCw, ShieldCheck, ShoppingBag, Sparkles, Truck } from "lucide-react";
@@ -37,7 +38,7 @@ export default function ProductDetail({slug}:{slug:string}){
    <article className="grid min-w-0 overflow-hidden rounded-[30px] border border-[#745338] bg-gradient-to-br from-[#1b1412] to-[#0e0d0c] shadow-[0_20px_55px_rgba(0,0,0,.36)] md:grid-cols-2">
      <div className="relative isolate min-h-[310px] overflow-hidden bg-[radial-gradient(circle_at_center,rgba(155,103,53,.2),transparent_62%),linear-gradient(145deg,#231514,#0d0b09)] sm:min-h-[435px]">
        <span className="absolute inset-10 rounded-[50%] border border-[#b5894b]/15" aria-hidden="true"/>
-       <Image src={product.image} alt={product.name} fill priority sizes="(min-width:1300px) 600px,(min-width:768px) 50vw,95vw" className="object-contain p-7 sm:p-12"/>
+       <ProductImageZoom src={product.image} alt={product.name} priority sizes="(min-width:1300px) 600px,(min-width:768px) 50vw,95vw" className="p-7 sm:p-12"/>
        <div className="absolute right-4 top-4 rounded-full border border-[#a7834c] bg-[#180e0b]/90 px-4 py-2 text-xs font-bold text-[#f0d49b]">{categoryName || "محصول"}</div>
      </div>
      <div className="flex min-w-0 flex-col gap-5 border-t border-[#503a29] p-5 sm:p-8 md:border-r md:border-t-0 lg:p-10">
@@ -64,6 +65,6 @@ export default function ProductDetail({slug}:{slug:string}){
        specs.length ? <dl className="divide-y divide-[#4e3b2a]">{specs.map(([label,value])=><div key={label} className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-4 py-4 text-sm"><dt className="font-bold text-[#c4ae88]">{label}</dt><dd className="text-[#f4e8d1]">{value}</dd></div>)}</dl>:<p className="text-[#c4ae88]">مشخصات تکمیلی برای این محصول ثبت نشده است.</p>}
      </div>
    </section>}
-   {related.length>0&&<section className="mt-10"><div className="mb-6 flex flex-wrap items-center justify-between gap-4"><div><p className="mb-2 text-xs font-bold tracking-widest text-[#d2a765]">DISCOVER MORE</p><h2 className="text-2xl font-black text-[#f5e5c8]">محصولات مرتبط</h2></div><Link href={`/shop?category=${product.category}`} className="inline-flex items-center gap-2 text-sm font-bold text-[#e6c47b]">دیدن دسته <ArrowLeft size={17}/></Link></div><ul className="grid gap-4 min-[550px]:grid-cols-2 lg:grid-cols-4">{related.map(item=><li key={item.slug}><ProductCard product={item} saveable/></li>)}</ul></section>}
+   {related.length>0&&<section className="mt-10"><div className="mb-6 flex flex-wrap items-center justify-between gap-4"><div><p className="mb-2 text-xs font-bold tracking-widest text-[#d2a765]">DISCOVER MORE</p><h2 className="text-2xl font-black text-[#f5e5c8]">محصولات مرتبط</h2></div><Link href={`/shop?category=${product.category}`} className="inline-flex items-center gap-2 text-sm font-bold text-[#e6c47b]">دیدن دسته <ArrowLeft size={17}/></Link></div><AnimatedGroup as="ul" preset="scale" className="grid gap-4 min-[550px]:grid-cols-2 lg:grid-cols-4">{related.map(item=><li key={item.slug}><ProductCard product={item} saveable/></li>)}</AnimatedGroup></section>}
  </main>;
 }

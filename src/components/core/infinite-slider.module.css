@@ -1,0 +1,7 @@
+ .viewport { position:relative; overflow:hidden; isolation:isolate; -webkit-mask-image:linear-gradient(to right,transparent,#000 4%,#000 96%,transparent);mask-image:linear-gradient(to right,transparent,#000 4%,#000 96%,transparent) }
+.track { width:max-content;display:flex;align-items:stretch;animation:md-marquee var(--md-speed,42s) linear infinite;will-change:transform }
+.group { display:flex;align-items:stretch;gap:var(--md-gap,24px);padding-inline-end:var(--md-gap,24px);flex:none }
+@keyframes md-marquee {to{transform:translateX(-50%)}}
+.viewport:hover .track {animation-duration:var(--md-hover-speed,90s)}
+.viewport:focus-within .track {animation-play-state:paused}
+@media (prefers-reduced-motion:reduce){.viewport{overflow-x:auto;mask-image:none;-webkit-mask-image:none}.track{animation:none;will-change:auto}.group[aria-hidden="true"]{display:none}}

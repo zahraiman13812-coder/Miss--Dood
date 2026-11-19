@@ -10,6 +10,8 @@ import { pages } from "@/data/navigation";
 import { CategoryMegaMenu, MobileCategoryMenu } from "./CategoryMegaMenu";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/core/accordion";
 import { ChevronRight } from "lucide-react";
+import { AnimatedBackground } from "@/components/core/animated-background";
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from "@/components/core/dialog";
 
 const action = "inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl transition hover:bg-panel hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent";
 function SearchForm({ focus = false, close }: { focus?: boolean; close?: () => void }) {
@@ -28,15 +30,14 @@ export default function Header() {
   const signedIn = useSignedInEmail();
   const count = Object.values(useCart()).reduce((sum, qty) => sum + qty, 0).toLocaleString("fa-IR");
   const path = usePathname();
-  const [open, setOpen] = useState<"categories" | "search" | null>(null);
+  const [open, setOpen] = useState<"categories" | null>(null);
   const header = useRef<HTMLElement>(null);
   const drawer = useRef<HTMLDialogElement>(null);
   const categoryButton = useRef<HTMLButtonElement>(null);
-  const searchButton = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     const outside = (e: PointerEvent) => { if (!header.current?.contains(e.target as Node)) setOpen(null); };
     const escape = (e: KeyboardEvent) => { if (e.key === "Escape" && open) {
-      (open === "search" ? searchButton : categoryButton).current?.focus(); setOpen(null);
+      categoryButton.current?.focus(); setOpen(null);
     }};
     const breakpoint = matchMedia("(min-width: 80rem)");
     const reset = () => { drawer.current?.close(); setOpen(null); };
@@ -45,8 +46,8 @@ export default function Header() {
     return () => { breakpoint.removeEventListener("change", reset); document.removeEventListener("pointerdown", outside); document.removeEventListener("keydown", escape); };
   }, [open]);
   const close = () => { setOpen(null); drawer.current?.close(); };
-  const navLinks = [...pages, ["/orders", "پیگیری سفارش"]].map(([href, label]) => <Link key={href} href={href} onClick={close} aria-current={path === href ? "page" : undefined}
-    className="py-3 transition hover:text-accent aria-[current=page]:text-accent aria-[current=page]:underline underline-offset-8">{label}</Link>);
+  const navLinks = [...pages, ["/orders", "پیگیری سفارش"]].map(([href, label]) => <Link key={href} href={href} data-id={href} onClick={close} aria-current={path === href ? "page" : undefined}
+    className="relative px-1 py-3 transition-colors hover:text-accent aria-[current=page]:text-accent">{label}</Link>);
   return <header ref={header} className="sticky top-0 z-50 shrink-0 border-b border-line bg-header/95 text-sm backdrop-blur-xl shadow-[0_1px_0_rgba(139,45,56,.65)]">
     <div className="mx-auto grid max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 sm:px-8 xl:flex xl:justify-between xl:gap-4">
       <button className={action + " justify-self-start xl:hidden"} aria-label="باز کردن منو" onClick={() => { if (!drawer.current?.open) drawer.current?.showModal(); }}><Menu/></button>
@@ -56,13 +57,21 @@ export default function Header() {
           <button ref={categoryButton} aria-expanded={open === "categories"} onClick={() => setOpen(open === "categories" ? null : "categories")} className={action + " px-3 text-accent"}><Grid2X2 size={17}/>دسته‌بندی کالا<ChevronDown size={15}/></button>
           {open === "categories" && <div className="absolute right-0 top-full mt-3 rounded-[26px] shadow-[0_24px_70px_rgba(0,0,0,.55)]"><CategoryMegaMenu close={close}/></div>}
         </div>
-        {navLinks}
+        <AnimatedBackground enableHover transition={{ type: "spring", bounce: 0.2, duration: 0.3 }} className="gap-4 xl:gap-7">
+          {navLinks}
+        </AnimatedBackground>
       </nav>
       <div className="flex items-center justify-self-end gap-2 xl:ms-auto">
-        <div className="relative hidden xl:block">
-          <button ref={searchButton} aria-label="جست‌وجو" aria-expanded={open === "search"} className={action} onClick={() => setOpen(open === "search" ? null : "search")}><Search size={21}/></button>
-          {open === "search" && <div className="absolute left-0 top-full mt-3 w-[min(27rem,90vw)] rounded-2xl border border-line bg-[#11100d] p-3 shadow-2xl"><SearchForm focus close={close}/></div>}
-        </div>
+        <Dialog variants={{ initial:{opacity:0,scale:.95,y:40}, animate:{opacity:1,scale:1,y:0}, exit:{opacity:0,scale:.95,y:40} }} transition={{type:"spring",bounce:0,duration:.25}}>
+          <DialogTrigger aria-label="باز کردن جست‌وجو" className={action}><Search size={21}/></DialogTrigger>
+          <DialogContent className="w-[min(32rem,calc(100vw-2rem))] p-5 sm:p-7">
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <DialogHeader><DialogTitle className="text-xl font-black text-[#e4bf76]">جست‌وجو در میس دود</DialogTitle><DialogDescription className="text-sm leading-7 text-[#c8bca7]">نام کالا، برند یا دسته‌بندی را وارد کنید.</DialogDescription></DialogHeader>
+              <DialogClose/>
+            </div>
+            <SearchForm focus close={() => undefined}/>
+          </DialogContent>
+        </Dialog>
         <Link href={signedIn ? "/account" : "/login"} onClick={close} aria-label={signedIn ? "حساب کاربری" : "ورود یا ثبت‌نام"} title={signedIn ? "حساب کاربری" : "ورود یا ثبت‌نام"} className={action + " border border-line px-2 text-accent"}><UserRound size={21}/></Link>
         <Link href="/cart" onClick={close} aria-label={`سبد خرید، ${count} کالا`} className={action + " border border-line px-2 text-accent"}><ShoppingBag size={19}/><span>{count}</span></Link>
       </div>
