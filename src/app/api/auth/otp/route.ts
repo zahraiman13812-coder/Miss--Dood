@@ -110,8 +110,8 @@ export async function POST(request: NextRequest) {
         if (row.send_count > 0 && Date.now() - new Date(row.last_sent_at).getTime() < 60_000) {
           throw new Error("OTP_COOLDOWN");
         }
-        const windowActive = Date.now() - new Date(row.send_window_started_at).getTime() < 24 * 60 * 60 * 1000;
-        if (windowActive && row.send_count >= 8) throw new Error("OTP_DAILY_LIMIT");
+        // No per-day OTP quota. Keep the short cooldown and abuse protection.
+        // Existing send_count values from previous days must not block a user.
         await client.query(
           `UPDATE email_otp_challenges SET purpose=$2,full_name=$3,code_hash=$4,expires_at=now()+interval '10 minutes',attempts=0,consumed_at=NULL,last_sent_at=now(),
            send_window_started_at=CASE WHEN send_window_started_at < now()-interval '24 hours' THEN now() ELSE send_window_started_at END,
@@ -183,7 +183,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof SyntaxError) return bad("INVALID_JSON");
     if (error instanceof Error) {
       const status: Record<string, number> = {
-        OTP_COOLDOWN: 429, OTP_DAILY_LIMIT: 429, OTP_NOT_FOUND: 404, OTP_EXPIRED: 410,
+        OTP_COOLDOWN: 429, OTP_NOT_FOUND: 404, OTP_EXPIRED: 410,
         OTP_ATTEMPTS_EXCEEDED: 429, INVALID_OTP: 401, ACCOUNT_EXISTS: 409, ACCOUNT_NOT_FOUND: 404,
       };
       if (status[error.message]) return bad(error.message, status[error.message]);
