@@ -21,10 +21,29 @@ function safeEqual(a: string, b: string) {
 }
 
 async function sendEmail(to: string, code: string) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const sender = process.env.EMAIL_FROM?.trim();
-  const from = sender && !sender.includes("<") ? `MISS DOOD <${sender}>` : sender;
-  if (!apiKey || !from) throw new Error("EMAIL_NOT_CONFIGURED");
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const rawSender = process.env.EMAIL_FROM?.trim();
+  if (!apiKey || !rawSender) throw new Error("EMAIL_NOT_CONFIGURED");
+
+  // Vercel values are literal. Accidental wrapping quotes or a pasted
+  // EMAIL_FROM= assignment should not be sent as part of Resend's `from`.
+  let sender = rawSender.replace(/^EMAIL_FROM\s*=\s*/i, "").trim();
+  for (let n = 0; n < 2; n++) {
+    if ((sender.startsWith('"') && sender.endsWith('"')) ||
+        (sender.startsWith("'") && sender.endsWith("'"))) {
+      sender = sender.slice(1, -1).trim();
+    }
+  }
+  // Accept a plain address OR a standard "Display Name <address>" value,
+  // then canonicalize the sender name to MISS DOOD.
+  const displayAddress = /^(?:[^<>]*?)<([^<>]+)>$/.exec(sender);
+  const address = (displayAddress ? displayAddress[1] : sender).trim();
+  if (!/^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?$/.test(address) ||
+      address.includes("..") || /[\r\n\t\s]/.test(address)) {
+    console.error("OTP email sender configuration is invalid (EMAIL_FROM format)");
+    throw new Error("RESEND_SENDER_INVALID");
+  }
+  const from = `MISS DOOD <${address}>`;
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
