@@ -10,6 +10,19 @@ const orders = get("src/app/api/orders/route.ts");
 assert.match(orders, /FOR UPDATE/, "Product inventory must be locked in transactions");
 assert.match(orders, /idempotency-key/, "Order requests must use idempotency key");
 const admin = get("src/app/api/admin/route.ts");
-assert.match(admin, /await admin\(\)/, "Admin authorization required");
+// Both admin endpoints must reject users without the admin role.
+// Avoid coupling this smoke test to a particular helper name (`admin()` vs `currentUser()`).
+for (const method of ["GET", "PATCH"]) {
+  const start = admin.indexOf(`export async function ${method}(`);
+  assert.ok(start >= 0, `Missing admin ${method} endpoint`);
+  const next = admin.indexOf("export async function ", start + 1);
+  const handler = admin.slice(start, next < 0 ? undefined : next);
+  assert.ok(
+    /await admin\(\)/.test(handler) ||
+    /\(await currentUser\(\)\)\?\.role\s*!==\s*["']admin["']/.test(handler),
+    `Admin authorization required for ${method}`
+  );
+}
+
 for (const f of ["db/001_init.sql","db/002_safety.sql","src/app/(store)/help/page.tsx","src/features/store/useStore.ts"]) assert.ok(existsSync(f), `Missing ${f}`);
 console.log("Source smoke checks passed");
