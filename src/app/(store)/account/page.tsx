@@ -7,6 +7,7 @@ import { ArrowLeft, ClipboardList, Download, Heart, Home, LogOut, MapPin, Packag
   Pencil, Plus, RefreshCw, Save, ShieldCheck, Sparkles, Trash2, UserRound, X } from "lucide-react";
 import type { Product } from "@/data/mock/latestProducts";
 import ProductCard from "@/features/catalog/ProductCard";
+import StoreLoading from "@/components/ui/StoreLoading";
 
 type Tab = "overview" | "addresses" | "orders" | "profile" | "recommended";
 type Profile = { id: string; full_name: string; email: string; phone: string };
@@ -127,7 +128,7 @@ export default function AccountPage() {
   }
   async function logout(){setBusy(true);try{await jsonFetch("/api/auth",{method:"DELETE"});router.replace("/login");router.refresh();}catch{setMessage("خروج ناموفق بود.");setBusy(false);}}
 
-  if(loading)return <main className="mx-auto max-w-7xl px-4 py-12"><p role="status" className={panel}>در حال دریافت اطلاعات حساب…</p></main>;
+  if(loading)return <main className="mx-auto w-full max-w-7xl px-4 py-8"><StoreLoading compact message="در حال آماده‌سازی پنل کاربری شما…" /></main>;
   if(!profile)return <main className="mx-auto max-w-xl px-4 py-10"><div className={panel}><h1 className="text-2xl font-bold">حساب کاربری</h1><p className="my-5 text-[#dbc7a3]">{message||"ابتدا وارد حساب شوید."}</p><Link href="/login" className={goldButton}>ورود به حساب</Link></div></main>;
 
   return <main className="mx-auto max-w-7xl space-y-6 px-4 py-8 text-[#f6eddc] sm:px-6 lg:px-8">
