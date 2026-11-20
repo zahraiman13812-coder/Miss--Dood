@@ -26,7 +26,10 @@ function SearchForm({ focus = false, close }: { focus?: boolean; close?: () => v
     </button>
   </form>;
 }
+type MenuEntry={slug:string;label:string;brands:{slug:string;label:string}[]};
 export default function Header() {
+  const [cmsCategories,setCmsCategories]=useState<MenuEntry[]|undefined>(undefined);
+  useEffect(()=>{fetch("/api/site-content").then(r=>r.ok?r.json():null).then(d=>{if(d?.catalog?.categories)setCmsCategories(d.catalog.categories)}).catch(()=>{});},[]);
   const signedIn = useSignedInEmail();
   const count = Object.values(useCart()).reduce((sum, qty) => sum + qty, 0).toLocaleString("fa-IR");
   const path = usePathname();
@@ -51,11 +54,11 @@ export default function Header() {
   return <header ref={header} className="sticky top-0 z-50 shrink-0 border-b border-line bg-header/95 text-sm backdrop-blur-xl shadow-[0_1px_0_rgba(139,45,56,.65)]">
     <div className="mx-auto grid max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 sm:px-8 xl:flex xl:justify-between xl:gap-4">
       <button className={action + " justify-self-start xl:hidden"} aria-label="باز کردن منو" onClick={() => { if (!drawer.current?.open) drawer.current?.showModal(); }}><Menu/></button>
-      <Link href="/" onClick={close} aria-label="میس دود، صفحه اصلی"><Image src="/brand/miss-dood-logo.jpg" alt="MISS DOOD" width={112} height={112} priority className="size-16 object-contain sm:size-20 xl:size-28"/></Link>
+      <Link href="/" onClick={close} aria-label="میس دود، صفحه اصلی"><Image src="/brand/miss-dood-logo.png" alt="MISS DOOD" width={112} height={112} priority className="size-16 object-contain sm:size-20 xl:size-28"/></Link>
       <nav aria-label="منوی اصلی" className="hidden items-center gap-4 xl:flex xl:gap-7">
         <div className="relative">
           <button ref={categoryButton} aria-expanded={open === "categories"} onClick={() => setOpen(open === "categories" ? null : "categories")} className={action + " px-3 text-accent"}><Grid2X2 size={17}/>دسته‌بندی کالا<ChevronDown size={15}/></button>
-          {open === "categories" && <div className="absolute right-0 top-full mt-3 rounded-[26px] shadow-[0_24px_70px_rgba(0,0,0,.55)]"><CategoryMegaMenu close={close}/></div>}
+          {open === "categories" && <div className="absolute right-0 top-full mt-3 rounded-[26px] shadow-[0_24px_70px_rgba(0,0,0,.55)]"><CategoryMegaMenu close={close} entries={cmsCategories}/></div>}
         </div>
         <AnimatedBackground enableHover transition={{ type: "spring", bounce: 0.2, duration: 0.3 }} className="gap-4 xl:gap-7">
           {navLinks}
@@ -80,7 +83,7 @@ export default function Header() {
       <div className="mb-5 flex items-center justify-between"><strong id="menu-title" className="text-accent">منوی فروشگاه</strong><button className={action} onClick={close} aria-label="بستن منو"><X/></button></div>
       <SearchForm close={close}/>
       <nav aria-label="منوی موبایل" className="mt-5 flex flex-col gap-2">
-        <Accordion transition={{ type: "spring", stiffness: 120, damping: 20 }} variants={{ expanded: { opacity: 1, scale: 1 }, collapsed: { opacity: 0, scale: .7 } }}><AccordionItem value="mobile-categories" className="border-b border-line pb-3"><AccordionTrigger className="flex min-h-12 w-full items-center gap-2 py-3 text-right font-bold text-accent"><ChevronRight data-accordion-chevron size={17}/> دسته‌بندی کالاها</AccordionTrigger><AccordionContent className="origin-right"><div className="pt-3"><MobileCategoryMenu close={close}/></div></AccordionContent></AccordionItem></Accordion>
+        <Accordion transition={{ type: "spring", stiffness: 120, damping: 20 }} variants={{ expanded: { opacity: 1, scale: 1 }, collapsed: { opacity: 0, scale: .7 } }}><AccordionItem value="mobile-categories" className="border-b border-line pb-3"><AccordionTrigger className="flex min-h-12 w-full items-center gap-2 py-3 text-right font-bold text-accent"><ChevronRight data-accordion-chevron size={17}/> دسته‌بندی کالاها</AccordionTrigger><AccordionContent className="origin-right"><div className="pt-3"><MobileCategoryMenu close={close} entries={cmsCategories}/></div></AccordionContent></AccordionItem></Accordion>
         {navLinks}
         <Link href={signedIn ? "/account" : "/login"} onClick={close} aria-label={signedIn ? "حساب کاربری" : "ورود یا ثبت‌نام"} className="flex size-12 items-center justify-center rounded-xl border border-line text-accent"><UserRound size={21}/></Link>
       </nav>

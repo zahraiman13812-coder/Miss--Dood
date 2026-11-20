@@ -1,9 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowUpLeft } from "lucide-react";
-import { categories } from "@/data/navigation";
+import { ArrowUpLeft, Package } from "lucide-react";
+import {categories as knownCategories} from "@/data/navigation";
 
-export default function CategoryGrid() {
+
+export default function CategoryGrid({categories}:{categories:{slug:string;label:string}[]}) {
   return <section aria-labelledby="category-heading" className="mx-auto w-full max-w-7xl min-w-0 px-3 pb-10 sm:px-6 sm:pb-14 xl:px-8">
     <div className="mb-5 flex items-center gap-3 sm:gap-4">
       <span aria-hidden="true" className="h-6 w-1 shrink-0 rounded-full bg-[#9e3438]"/>
@@ -11,10 +12,10 @@ export default function CategoryGrid() {
       <span aria-hidden="true" className="h-px min-w-0 flex-1 bg-line"/>
     </div>
     <ul className="grid grid-cols-2 gap-2.5 min-[520px]:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
-      {categories.map(([slug,label])=><li key={slug} className="min-w-0">
+      {categories.map(({slug,label})=><li key={slug} className="min-w-0">
         <Link href={{pathname:"/shop",query:{category:slug}}} className="group flex h-full min-w-0 flex-col overflow-hidden rounded-[20px] border border-[#564629] bg-gradient-to-b from-[#1c1913] to-[#100e0a] p-2.5 transition duration-200 hover:-translate-y-1 hover:border-[#b69053] hover:shadow-[0_12px_35px_rgba(0,0,0,.3)] focus-visible:border-[#e4bf76] sm:p-4">
           <div className="relative mx-auto aspect-square w-full max-w-40 overflow-hidden rounded-xl bg-[#11100d]/60 p-2">
-            <Image src={`/images/categories/${slug}.webp`} alt="" fill sizes="(min-width: 1280px) 160px, (min-width: 640px) 25vw, 42vw" className="object-contain p-2 transition-transform duration-300 group-hover:scale-105"/>
+            {knownCategories.some(([id])=>id===slug)?<Image src={`/images/categories/${slug}.webp`} alt="" fill sizes="(min-width: 1280px) 160px, (min-width: 640px) 25vw, 42vw" className="object-contain p-2 transition-transform duration-300 group-hover:scale-105"/>:<div className="flex size-full items-center justify-center text-[#d6b471]"><Package size={48}/></div>}
           </div>
           <div className="mt-auto flex min-h-12 min-w-0 items-center justify-between gap-2 border-t border-[#574629] pt-3 sm:mt-3">
             <span className="text-sm font-extrabold text-[#f4e8d2] transition group-hover:text-[#e4bf76] sm:text-base">{label}</span>

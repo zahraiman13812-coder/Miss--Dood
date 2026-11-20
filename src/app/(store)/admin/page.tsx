@@ -69,6 +69,8 @@ function PageControl({page,count:total,pageSize,onChange}:{page:number;count:num
 
 export default function AdminPage(){
   const [active,setActive]=useState<Tab>("overview");
+  const [editableCategories,setEditableCategories]=useState<{slug:string;label:string}[]>(categories.map(([slug,label])=>({slug,label})));
+  useEffect(()=>{fetch("/api/admin/content",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(v=>{if(v?.catalog?.categories)setEditableCategories(v.catalog.categories)}).catch(()=>{});},[]);
   const [data,setData]=useState<DashboardData|null>(null);
   const [loading,setLoading]=useState(true);
   const [busy,setBusy]=useState(false);
@@ -115,7 +117,7 @@ export default function AdminPage(){
     const href=URL.createObjectURL(blob);const link=document.createElement("a");link.href=href;link.download="miss-dood-orders.csv";link.click();URL.revokeObjectURL(href);
   }
 
-  return <main className="min-h-screen bg-[radial-gradient(ellipse_at_top_right,rgba(108,25,43,.18),transparent_36%),#0b0908] px-3 py-5 text-[#f4e9d5] sm:px-5 lg:px-8 lg:py-8">
+  return <main className="min-h-screen bg-[radial-gradient(ellipse_at_top_right,rgba(108,25,43,.18),transparent_36%),#0b0908] px-3 py-5 text-[#f4e9d5] sm:px-5 lg:px-8 lg:py-8"><div className="mx-auto flex max-w-7xl flex-wrap gap-3 px-4 pt-5"><Link href="/admin/content" className="rounded-xl border border-[#b68f56] bg-[#342020] px-4 py-3 text-sm font-bold text-[#f6d392]">مدیریت محتوا، بنرها و دسته‌بندی‌ها</Link><Link href="/admin/team" className="rounded-xl border border-[#b68f56] bg-[#342020] px-4 py-3 text-sm font-bold text-[#f6d392]">مدیران و دسترسی‌ها</Link></div>
     <div className="mx-auto max-w-[1500px]">
       <header className={`${panel} mb-6 flex flex-wrap items-center justify-between gap-4 p-5 sm:p-6`}>
         <div className="flex items-center gap-4"><span className="grid size-12 place-items-center rounded-2xl border border-[#b88c53]/55 bg-[#6a2233]/25 text-[#edc77e]"><ShieldCheck size={24}/></span><div><p className="text-xs tracking-[.26em] text-[#c69e65]">MISS DOOD · CONTROL CENTER</p><h1 className="mt-1 text-2xl font-black">مدیریت فروشگاه</h1><p className="mt-1 text-xs text-[#a69477]">مدیریت یکپارچه سفارش‌ها، کالاها و مشتریان</p></div></div>
@@ -160,7 +162,7 @@ export default function AdminPage(){
                 <form onSubmit={saveProduct} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                   <label className="text-sm text-[#d1b990]">شناسه انگلیسی<input className={`${field} mt-2`} required disabled={editing} value={draft.slug} onChange={e=>setDraft({...draft,slug:e.target.value.trim().toLowerCase()})} pattern="[a-z0-9][a-z0-9-]{0,119}" placeholder="sample-product"/></label>
                   <label className="text-sm text-[#d1b990] sm:col-span-1 xl:col-span-2">نام محصول<input className={`${field} mt-2`} required maxLength={200} value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value})}/></label>
-                  <label className="text-sm text-[#d1b990]">دسته‌بندی<select className={`${field} mt-2`} value={draft.category} onChange={e=>setDraft({...draft,category:e.target.value})}>{categories.map(([slug,title])=><option key={slug} value={slug}>{title}</option>)}</select></label>
+                  <label className="text-sm text-[#d1b990]">دسته‌بندی<select className={`${field} mt-2`} value={draft.category} onChange={e=>setDraft({...draft,category:e.target.value})}>{editableCategories.map(({slug,label})=><option key={slug} value={slug}>{label}</option>)}</select></label>
                   <label className="text-sm text-[#d1b990]">برند<select className={`${field} mt-2`} value={draft.brand} onChange={e=>setDraft({...draft,brand:e.target.value})}><option value="">بدون برند</option>{brands.map(b=><option key={b.slug} value={b.slug}>{b.name}</option>)}</select></label>
                   <label className="text-sm text-[#d1b990]">قیمت (تومان)<input className={`${field} mt-2`} type="number" min="0" step="1" value={draft.price} onChange={e=>setDraft({...draft,price:e.target.value})} placeholder="خالی = قیمت نامشخص"/></label>
                   <label className="text-sm text-[#d1b990]">موجودی<input className={`${field} mt-2`} type="number" min="0" max="1000000" step="1" required value={draft.stock} onChange={e=>setDraft({...draft,stock:e.target.value})}/></label>

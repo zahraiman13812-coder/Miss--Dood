@@ -6,14 +6,16 @@ import { ArrowLeft, Boxes, ChevronLeft, Grid2X2, Sparkles } from "lucide-react";
 import { categories, categoryBrands } from "@/data/navigation";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/core/accordion";
 
-type CategoryKey = typeof categories[number][0];
+type CategoryKey = string;
+type Entry={slug:string;label:string;brands:{slug:string;label:string}[]};
 type BrandPair = readonly [string, string];
 const allBrands = categoryBrands as Record<string, readonly BrandPair[]>;
 
-export function CategoryMegaMenu({ close }: { close: () => void }) {
+export function CategoryMegaMenu({ close, entries }: { close: () => void; entries?:Entry[] }) {
   const [active, setActive] = useState<CategoryKey>("cigarettes");
-  const current = categories.find(([slug]) => slug === active);
-  const brands = allBrands[active] ?? [];
+  const selected=entries??categories.map(([slug,label])=>({slug,label,brands:(allBrands[slug]??[]).map(([s,l])=>({slug:s,label:l}))}));
+  const current=selected.find(item=>item.slug===active);
+  const brands=(current?.brands??[]).map(b=>[b.slug,b.label] as const);
   return (
     <div className="w-[min(920px,calc(100vw-3rem))] overflow-hidden rounded-[26px] border border-[#8d6c3b]/70 bg-[#100d0c] shadow-[0_28px_85px_rgba(0,0,0,.74)]" dir="rtl">
       <div className="flex items-center justify-between gap-4 border-b border-[#5a4030] bg-gradient-to-l from-[#331219]/65 to-[#130f0c] px-5 py-4">
@@ -22,14 +24,14 @@ export function CategoryMegaMenu({ close }: { close: () => void }) {
       </div>
       <div className="grid grid-cols-[235px_minmax(0,1fr)]">
         <div className="max-h-[min(67vh,550px)] overflow-y-auto border-l border-[#53402e] bg-[#0c0b0a] p-3" aria-label="دسته‌های اصلی">
-          {categories.map(([key,label]) => <button key={key} type="button" onMouseEnter={()=>setActive(key)} onFocus={()=>setActive(key)} onClick={()=>setActive(key)} aria-pressed={active===key}
+          {selected.map(({slug:key,label}) => <button key={key} type="button" onMouseEnter={()=>setActive(key)} onFocus={()=>setActive(key)} onClick={()=>setActive(key)} aria-pressed={active===key}
             className={`mb-1 flex min-h-12 w-full items-center justify-between gap-2 rounded-xl px-3 text-right text-sm font-bold transition ${active===key?'border border-[#a88446] bg-gradient-to-l from-[#53242b] to-[#2a1a16] text-[#f6d99b] shadow-[inset_3px_0_0_#dcb86c]':'border border-transparent text-[#d6caba] hover:bg-[#29201c] hover:text-[#f2d18a]'}`}>
             <span>{label}</span><ChevronLeft size={16} className="shrink-0 opacity-70"/>
           </button>)}
         </div>
         <section className="max-h-[min(67vh,550px)] min-h-72 overflow-y-auto p-5" aria-live="polite">
           <div className="mb-5 flex flex-wrap items-center justify-between gap-2 border-b border-[#57412b] pb-4">
-            <h3 className="flex items-center gap-2 text-lg font-black text-[#f3e4c6]"><Grid2X2 size={19} className="text-[#e8c47c]"/>{current?.[1]}</h3>
+            <h3 className="flex items-center gap-2 text-lg font-black text-[#f3e4c6]"><Grid2X2 size={19} className="text-[#e8c47c]"/>{current?.label}</h3>
             <Link href={`/shop?category=${active}`} onClick={close} className="rounded-full border border-[#977447] bg-[#271b13] px-4 py-2 text-xs font-bold text-[#f0d18c] hover:border-[#dfb86a]">همه محصولات این دسته</Link>
           </div>
           {brands.length ? <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
@@ -43,11 +45,12 @@ export function CategoryMegaMenu({ close }: { close: () => void }) {
   );
 }
 
-export function MobileCategoryMenu({ close }: { close: () => void }) {
+export function MobileCategoryMenu({ close, entries }: { close: () => void; entries?:Entry[] }) {
+  const selected=entries??categories.map(([slug,label])=>({slug,label,brands:(allBrands[slug]??[]).map(([s,l])=>({slug:s,label:l}))}));
   return <Accordion className="space-y-2" dir="rtl" transition={{ type: "spring", stiffness: 120, damping: 20 }}
     variants={{ expanded: { opacity: 1, scale: 1 }, collapsed: { opacity: 0, scale: .7 } }}>
-    {categories.map(([key, label]) => {
-      const brands = allBrands[key] ?? [];
+    {selected.map(({slug:key,label,brands:brandEntries}) => {
+      const brands = brandEntries.map(b=>[b.slug,b.label] as const);
       return <AccordionItem key={key} value={key} className="overflow-hidden rounded-xl border border-[#655035] bg-[#13100d] data-[expanded=true]:border-[#b3894a]">
         <AccordionTrigger className="flex min-h-12 w-full items-center justify-between gap-2 px-4 text-right font-extrabold text-[#ecd5a3]">
           {label}<ChevronLeft data-accordion-chevron size={16} />

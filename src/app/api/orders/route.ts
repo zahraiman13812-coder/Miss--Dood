@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@/lib/session";
 import { db, transaction } from "@/lib/db";
 import { bad, errorResponse, noStore, sameOrigin } from "@/lib/http";
-import { storeContact } from "@/data/storeContact";
+import {getCms} from "@/lib/site-cms";
 export const runtime="nodejs";
 class OrderError extends Error {constructor(public code:string){super(code);}}
 export async function GET(req: NextRequest) {try {
@@ -50,12 +50,13 @@ export async function POST(req:NextRequest) {try {
  // Fast path for retries after the original request has already committed.
  const existing=await db().query<{id:string}>("SELECT id FROM orders WHERE user_id=$1 AND idempotency_key=$2",[user.id,key]);
  if(existing.rows[0])return NextResponse.json({orderId:existing.rows[0].id},{status:200,headers:noStore});
+ const {contact:storeContact}=await getCms();
  const orderId=await transaction(async client=>{
-  // Serialize same-user, same-key requests BEFORE inventory locks. Otherwise two
-  // simultaneous checkouts with different carts can both reach the unique insert.
-  await client.query("SELECT pg_advisory_xact_lock(hashtext($1),hashtext($2))",[user.id,key]);
-  const duplicate=await client.query<{id:string}>("SELECT id FROM orders WHERE user_id=$1 AND idempotency_key=$2",[user.id,key]);
-  if(duplicate.rows[0])return duplicate.rows[0].id;
+  // Serialize retries for the same user and idempotency key, even if the
+  // associated products differ or the cart is empty in another retry.
+  await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))", [user.id + ":" + key]);
+  const previous=await client.query<{id:string}>("SELECT id FROM orders WHERE user_id=$1 AND idempotency_key=$2",[user.id,key]);
+  if(previous.rows[0])return previous.rows[0].id;
   const shipping=await client.query<{fee:string}>("SELECT fee::text FROM shipping_rules WHERE city=$1 AND active=true",[city]);
   if(!shipping.rows[0] && method!=="pickup")throw new OrderError("INVALID_SHIPPING_CITY");
   let fee = method === "pickup" ? 0 : Number(shipping.rows[0]?.fee);
@@ -65,9 +66,7 @@ export async function POST(req:NextRequest) {try {
     fee=Number(express.rows[0].fee);
   }
   const rows=await client.query<{slug:string;name:string;price_toman:string;stock:number}>("SELECT slug,name,price_toman::text,stock FROM products WHERE slug = ANY($1::text[]) AND active=true ORDER BY slug FOR UPDATE",[items.map(i=>i.slug)]);
-  // Locks on the same products serialize simultaneous retries of the same checkout.
-  const previous=await client.query<{id:string}>("SELECT id FROM orders WHERE user_id=$1 AND idempotency_key=$2",[user.id,key]);
-  if(previous.rows[0])return previous.rows[0].id;
+  // Product row locks also protect stock levels across different checkouts.
   if(rows.rows.length!==items.length)throw new OrderError("PRODUCT_UNAVAILABLE");
   let subtotal=0;const lines=[];
   for(const item of items){const product=rows.rows.find(p=>p.slug===item.slug)!;

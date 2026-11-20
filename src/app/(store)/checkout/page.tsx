@@ -10,7 +10,7 @@ import { useCart, changeQuantity } from "@/features/cart/useCart";
 import { summarizeCart } from "@/features/cart/cartSummary";
 import { productPrice } from "@/data/mock/latestProducts";
 import LocationPicker, {type Coordinates} from "@/features/account/LocationPicker";
-import {storeContact} from "@/data/storeContact";
+import {storeContact as defaultContact} from "@/data/storeContact";
 
 type DeliveryMethod = "pickup" | "express" | "post";
 type Address = { id:string; title:string; recipient_name:string;phone:string;city:string;province:string;building:string;unit:string;address:string;postal_code:string;latitude:number|null;longitude:number|null;preferred_shipping_method?:DeliveryMethod };
@@ -24,6 +24,8 @@ const methods: {id:DeliveryMethod;label:string;caption:string;icon:typeof Truck}
   {id:"post",label:"ارسال پستی",caption:"تهران و شهرستان‌ها، طبق تعرفه شهر",icon:Truck},
 ];
 export default function CheckoutPage() {
+  const [pickupAddress,setPickupAddress]=useState(defaultContact.address);
+  useEffect(()=>{fetch("/api/site-content").then(r=>r.ok?r.json():null).then(v=>{if(typeof v?.contact?.address==="string")setPickupAddress(v.contact.address)}).catch(()=>{});},[]);
   const cart = useCart();
   const {shipping,city,catalogStatus} = useStore();
   const {lines,count,total,stockIssue} = summarizeCart(cart);
@@ -92,7 +94,7 @@ export default function CheckoutPage() {
   return <main className="mx-auto w-full max-w-3xl space-y-5 px-4 py-8 text-[#f5ead4]"><PurchaseSteps current={review?2:1}/><h1 className="text-2xl font-black">{review?"مرور نهایی سفارش":"مشخصات گیرنده و روش تحویل"}</h1>
     {catalogStatus !== "ready"?<div className={panel}>در حال بارگذاری اطلاعات کالا یا خطا در اتصال به کاتالوگ…</div>:
     !count||stockIssue||total===null?<div className={panel}>سبد خرید را بررسی کنید. <Link href="/cart" className="text-[#e7c47c]">بازگشت</Link></div>:
-    review?<section className={`${panel} space-y-4`}><h2 className="text-xl font-bold">خلاصه سفارش</h2><p>{recipient.name} — <bdi dir="ltr">{recipient.phone}</bdi></p><p>{recipient.province||"تهران"}، {selectedCity}، {method==="pickup"?storeContact.address:recipient.address} {recipient.building&&`، پلاک ${recipient.building}`} {recipient.unit&&`، واحد ${recipient.unit}`}</p>{method!=="pickup"&&<p>کد پستی: {postalCode}</p>}
+    review?<section className={`${panel} space-y-4`}><h2 className="text-xl font-bold">خلاصه سفارش</h2><p>{recipient.name} — <bdi dir="ltr">{recipient.phone}</bdi></p><p>{recipient.province||"تهران"}، {selectedCity}، {method==="pickup"?pickupAddress:recipient.address} {recipient.building&&`، پلاک ${recipient.building}`} {recipient.unit&&`، واحد ${recipient.unit}`}</p>{method!=="pickup"&&<p>کد پستی: {postalCode}</p>}
       <p className="text-[#e8c477]">روش تحویل: {methods.find(m=>m.id===method)?.label}</p>
       {lines.map(l=><div key={l.product.slug} className="flex justify-between gap-4 border-b border-[#56462d] pb-2 text-sm"><span>{l.product.name} × {l.quantity}</span><span>{productPrice(l.amount)}</span></div>)}
       <p>جمع کالاها: {productPrice(total)}</p><p>هزینه ارسال: {productPrice(shippingFee??0)}</p><p className="text-lg font-bold text-[#e8c477]">مبلغ کل: {productPrice(total+(shippingFee??0))}</p>
@@ -121,7 +123,7 @@ export default function CheckoutPage() {
           <label className="sm:col-span-2">نشانی کامل<textarea required rows={3} minLength={6} maxLength={1000} autoComplete="street-address" className={input} value={recipient.address} onChange={e=>setRecipient(old=>({...old,address:e.target.value}))}/></label>
           <div className="sm:col-span-2"><LocationPicker city={selectedCity} value={coords} onChange={setCoords} label={method==="express"?"موقعیت دقیق برای ارسال اکسپرس (الزامی)":"انتخاب موقعیت روی نقشه (اختیاری برای پست)"}/></div>
         </>}
-        {method==="pickup" && <div className="sm:col-span-2 rounded-xl border border-[#7e663b] bg-[#0b0907] p-4 text-sm leading-7"><MapPin className="inline text-[#e8c477]" size={18}/> دریافت حضوری از: {storeContact.address}</div>}
+        {method==="pickup" && <div className="sm:col-span-2 rounded-xl border border-[#7e663b] bg-[#0b0907] p-4 text-sm leading-7"><MapPin className="inline text-[#e8c477]" size={18}/> دریافت حضوری از: {pickupAddress}</div>}
       </section>
       <section className="space-y-2 border-t border-[#604b2b] pt-4"><h2 className="text-lg font-bold text-[#e8c477]">۳. هزینه سفارش</h2><p>جمع کالاها: {productPrice(total)}</p><p>هزینه تحویل: {shippingFee==null?"هنوز قابل محاسبه نیست":productPrice(shippingFee)}</p>{shippingFee!=null&&<strong className="block text-lg text-[#eac781]">مجموع: {productPrice(total+shippingFee)}</strong>}</section>
       {error&&<p role="alert" className="rounded-xl border border-[#9f373c] bg-[#451d23] p-3 text-sm text-red-200">{error}</p>}

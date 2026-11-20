@@ -1,11 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { MapPin, Phone } from "lucide-react";
-import { storeContact, dialLink } from "@/data/storeContact";
+import { dialLink } from "@/data/storeContact";
+import {getCms} from "@/lib/site-cms";
 
 const linkStyle = "block w-fit py-2 text-sm text-muted hover:text-accent";
 
-export default function Footer() {
+export default async function Footer() {
+  const {contact:storeContact}=await getCms();
   return (
     <footer className="mt-auto border-t border-accent/45 bg-header text-content">
       <div className="mx-auto grid max-w-7xl grid-cols-2 gap-x-4 gap-y-6 px-5 py-8 sm:px-8 lg:grid-cols-[1fr_1fr_1.5fr] lg:py-12">

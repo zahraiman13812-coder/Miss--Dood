@@ -6,20 +6,24 @@ import { Heart, Search, RefreshCw, ArrowLeft, SlidersHorizontal, Sparkles, Packa
 import { budgets } from "@/components/home/BudgetLinks";
 import { useStore, refreshCatalog } from "@/features/store/useStore";
 import { brands } from "@/data/brands";
-import { categories, categoryBrands } from "@/data/navigation";
+
 import { decorProductSlugs } from "@/data/decorProducts";
 import ProductCard from "@/features/catalog/ProductCard";
 import FilterPanel from "@/features/catalog/FilterPanel";
 import { AnimatedGroup } from "@/components/core/animated-group";
 
 type Params = Record<string,string|string[]|undefined>;
-const departments = [...categories, ["decor", "محصولات تزئینی"] as const];
+
 const normalize = (s: string) => s.normalize("NFKC").toLowerCase().replace(/ي/g,"ی").replace(/ك/g,"ک").replace(/[\s\u200c]+/g," ").trim();
-const brandByCategory = categoryBrands as Record<string, readonly (readonly [string,string])[]>;
+
 const select = "md-control mt-2 block text-sm";
 const SIZE = 12;
 
-export default function ShopCatalog({params}:{params:Params}) {
+export default function ShopCatalog({params,cmsCategories}:{params:Params;cmsCategories:{slug:string;label:string;brands:{slug:string;label:string}[]}[]}) {
+  const categories:[string,string][] = cmsCategories.map(c=>[c.slug,c.label]);
+  const departments:[string,string][] = [...categories,["decor","محصولات تزئینی"]];
+  const brandByCategory:Record<string,{slug:string;name:string}[]> = Object.fromEntries(cmsCategories.map(c=>[c.slug,c.brands.map(b=>({slug:b.slug,name:b.label}))]));
+  const allBrands=[...new Map(cmsCategories.flatMap(c=>c.brands).map(b=>[b.slug,{slug:b.slug,name:b.label}])).values()];
   const {products:allProducts, stock, catalogStatus} = useStore();
   const value = (key:string) => {
     const item = params[key];
@@ -27,19 +31,19 @@ export default function ShopCatalog({params}:{params:Params}) {
   };
   const category = departments.find(([id]) => id === value("category"));
   const rawBrand = value("brand");
-  const brand = brands.find(b => b.slug === rawBrand);
+  const brand = allBrands.find(b => b.slug === rawBrand) ?? brands.find(b => b.slug === rawBrand);
   const q = value("q"), budget = budgets.find(b=>b.key===value("budget"));
   const sort = value("sort"), available = value("available") === "1";
   const page = Math.max(1, Math.min(10000, Number.parseInt(value("page"),10) || 1));
   const tokens = normalize(q).split(" ").filter(Boolean);
   const chosenCategory = category?.[0] || "";
   const options = chosenCategory && chosenCategory!=="decor"
-    ? (brandByCategory[chosenCategory] || []).map(([slug, name])=>({slug,name}))
-    : brands.map(({slug,name})=>({slug,name}));
+    ? (brandByCategory[chosenCategory] || [])
+    : allBrands;
   const selectedBrandName = brand?.name || rawBrand;
   const data = allProducts.filter(product => {
     const categoryTitle = categories.find(([id])=>id===product.category)?.[1];
-    const brandTitle = brands.find(b=>b.slug===product.brand)?.name || "";
+    const brandTitle = allBrands.find(b=>b.slug===product.brand)?.name || "";
     const matchingText = normalize([product.name,product.description,categoryTitle,brandTitle].join(" "));
     return (!category || (chosenCategory==="decor"? decorProductSlugs.has(product.slug) : product.category===chosenCategory)) &&
       (!rawBrand || product.brand===rawBrand) &&
