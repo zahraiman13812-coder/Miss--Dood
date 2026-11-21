@@ -10,6 +10,7 @@ import { brands } from "@/data/brands";
 import { decorProductSlugs } from "@/data/decorProducts";
 import ProductCard from "@/features/catalog/ProductCard";
 import FilterPanel from "@/features/catalog/FilterPanel";
+import SearchSuggestions from "@/features/catalog/SearchSuggestions";
 import { AnimatedGroup } from "@/components/core/animated-group";
 
 type Params = Record<string,string|string[]|undefined>;
@@ -34,6 +35,8 @@ export default function ShopCatalog({params,cmsCategories}:{params:Params;cmsCat
   const brand = allBrands.find(b => b.slug === rawBrand) ?? brands.find(b => b.slug === rawBrand);
   const q = value("q"), budget = budgets.find(b=>b.key===value("budget"));
   const sort = value("sort"), available = value("available") === "1";
+  const minPrice = value("minPrice")?Number(value("minPrice")):null;
+  const maxPrice = value("maxPrice")?Number(value("maxPrice")):null;
   const page = Math.max(1, Math.min(10000, Number.parseInt(value("page"),10) || 1));
   const tokens = normalize(q).split(" ").filter(Boolean);
   const chosenCategory = category?.[0] || "";
@@ -49,6 +52,8 @@ export default function ShopCatalog({params,cmsCategories}:{params:Params;cmsCat
       (!rawBrand || product.brand===rawBrand) &&
       (!available || (stock[product.slug] || 0)>0) &&
       (!budget || (product.priceToman!==null && product.priceToman>=budget.min && product.priceToman<budget.max)) &&
+      (minPrice===null||!Number.isFinite(minPrice)||(product.priceToman!==null&&product.priceToman>=minPrice)) &&
+      (maxPrice===null||!Number.isFinite(maxPrice)||(product.priceToman!==null&&product.priceToman<=maxPrice)) &&
       tokens.every(token=>matchingText.includes(token));
   });
   if (sort==="low" || sort==="high") data.sort((a,b) => {
@@ -61,7 +66,7 @@ export default function ShopCatalog({params,cmsCategories}:{params:Params;cmsCat
   const validPage = Math.max(1, Math.min(pages || 1,page));
   const visible = data.slice((validPage-1)*SIZE,validPage*SIZE);
   const currentParams = new URLSearchParams();
-  for (const key of ["category","brand","q","budget","sort","available"]) if(value(key)) currentParams.set(key,value(key));
+  for (const key of ["category","brand","q","budget","sort","available","minPrice","maxPrice"]) if(value(key)) currentParams.set(key,value(key));
   const href = (remove?:string, nextPage?:number) => {
     const p=new URLSearchParams(currentParams);
     if(remove)p.delete(remove);
@@ -70,7 +75,7 @@ export default function ShopCatalog({params,cmsCategories}:{params:Params;cmsCat
   };
   const filters = [
     ["category", category?.[1] || ""], ["brand",rawBrand?selectedBrandName:""],
-    ["q",q], ["budget",budget?.label||""], ["available",available?"فقط موجودها":""]
+    ["q",q], ["budget",budget?.label||""], ["minPrice",minPrice!==null?`از ${minPrice.toLocaleString("fa-IR")} تومان`:""], ["maxPrice",maxPrice!==null?`تا ${maxPrice.toLocaleString("fa-IR")} تومان`:""], ["available",available?"فقط موجودها":""]
   ].filter(([,label])=>Boolean(label));
   const title = rawBrand?`محصولات ${selectedBrandName}`:category?.[1] || (q?"نتایج جست‌وجو":"فروشگاه میس دود");
 
@@ -84,17 +89,18 @@ export default function ShopCatalog({params,cmsCategories}:{params:Params;cmsCat
       <p className="mt-3 max-w-xl text-sm leading-8 text-[#d4c3ae]">محصولات را بر اساس دسته، برند، قیمت و وضعیت موجودی پیدا کنید.</p>
       <div className="mt-6 flex flex-wrap gap-3">
         <Link href="/shop" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#af8145] bg-[#281a16] px-4 text-sm font-bold text-[#f2d18a] transition hover:bg-[#48222b]">همه محصولات <ArrowLeft size={17}/></Link>
+        <Link href="/compare" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#745439] bg-black/60 px-4 text-sm font-bold text-[#f5dfb3] hover:border-[#e6c47b]">مقایسه محصولات</Link>
         <Link href="/favorites" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#745439] bg-black/60 px-4 text-sm font-bold text-[#f5dfb3] hover:border-[#e6c47b]"><Heart size={17}/> علاقه‌مندی‌های من</Link>
       </div>
     </section>
     <div className="mt-7 grid items-start gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
       <FilterPanel>
         <form action="/shop" key={JSON.stringify(params)} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-          <label className="block text-sm font-bold text-[#e7d1a9]">جست‌وجوی کالا<input name="q" type="search" className="md-control mt-2 block" defaultValue={q} placeholder="نام محصول یا برند…" /></label>
+          <SearchSuggestions initial={q}/>
           <label className="block text-sm font-bold text-[#e7d1a9]">دسته‌بندی<select name="category" className={select} defaultValue={chosenCategory}><option value="">تمام دسته‌ها</option>{departments.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
           <label className="block text-sm font-bold text-[#e7d1a9]">برند<select name="brand" className={select} defaultValue={rawBrand}><option value="">تمام برندها</option>{options.map(({slug,name})=><option key={slug} value={slug}>{name}</option>)}{rawBrand&&!options.some(b=>b.slug===rawBrand)&&<option value={rawBrand}>{selectedBrandName}</option>}</select></label>
           <label className="block text-sm font-bold text-[#e7d1a9]">محدوده قیمت<select name="budget" className={select} defaultValue={budget?.key||""}><option value="">همه قیمت‌ها</option>{budgets.map(b=><option key={b.key} value={b.key}>{b.label}</option>)}</select></label>
-          <label className="block text-sm font-bold text-[#e7d1a9]">ترتیب نمایش<select name="sort" className={select} defaultValue={sort}><option value="">پیش‌فرض</option><option value="low">کمترین قیمت</option><option value="high">بیشترین قیمت</option><option value="az">نام محصول (الفبا)</option></select></label>
+          <div className="grid grid-cols-2 gap-2"><label className="text-xs font-bold text-[#e7d1a9]">حداقل قیمت (تومان)<input name="minPrice" type="number" min="0" step="1000" className="md-control mt-2" defaultValue={value("minPrice")}/></label><label className="text-xs font-bold text-[#e7d1a9]">حداکثر قیمت (تومان)<input name="maxPrice" type="number" min="0" step="1000" className="md-control mt-2" defaultValue={value("maxPrice")}/></label></div><label className="block text-sm font-bold text-[#e7d1a9]">ترتیب نمایش<select name="sort" className={select} defaultValue={sort}><option value="">پیش‌فرض</option><option value="low">کمترین قیمت</option><option value="high">بیشترین قیمت</option><option value="az">نام محصول (الفبا)</option></select></label>
           <label className="flex min-h-12 items-center gap-3 rounded-xl border border-[#62482f] bg-[#17120f] px-3 text-sm font-bold text-[#f0ddb7]"><input name="available" type="checkbox" value="1" defaultChecked={available} className="size-5 accent-[#d9b570]"/> فقط کالاهای موجود</label>
           <button className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[#e4c078] bg-gradient-to-b from-[#deb974] to-[#ad8649] px-4 font-black text-[#180f0c] transition hover:brightness-110"><SlidersHorizontal size={18}/> اعمال فیلترها</button>
           <Link href="/shop" className="text-center text-xs font-bold text-[#c9b59a] underline-offset-4 hover:text-[#efce8b] hover:underline">پاک کردن همه فیلترها</Link>

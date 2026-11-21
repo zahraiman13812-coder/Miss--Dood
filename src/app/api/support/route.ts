@@ -1,3 +1,4 @@
+import {adminCan} from "@/lib/admin-access";
 import { NextRequest, NextResponse } from "next/server";
 import { db, transaction } from "@/lib/db";
 import { currentUser } from "@/lib/session";
@@ -7,6 +8,7 @@ const validId = (v:unknown) => typeof v === "string" && /^[a-f0-9-]{36}$/i.test(
 export async function GET() {
  try {
   const user = await currentUser(); if(!user)return bad("AUTH_REQUIRED",401);
+  if(user.role==="admin"&&!await adminCan(user,"support"))return bad("FORBIDDEN",403);
   const result = await db().query(`SELECT t.id,t.subject,t.status,t.created_at,
    COALESCE((SELECT json_agg(json_build_object('from',CASE WHEN u.role='admin' THEN 'admin' ELSE 'customer' END,'text',m.body,'date',m.created_at) ORDER BY m.created_at,m.id)
    FROM support_messages m JOIN users u ON u.id=m.sender_id WHERE m.ticket_id=t.id),'[]'::json) AS messages
@@ -18,6 +20,7 @@ export async function POST(req:NextRequest) {
  try {
   if(!sameOrigin(req))return bad('CROSS_ORIGIN',403);
   const user=await currentUser();if(!user)return bad('AUTH_REQUIRED',401);
+  if(user.role==="admin"&&!await adminCan(user,"support"))return bad("FORBIDDEN",403);
   const data=await req.json();if(!data || typeof data!=='object')return bad('INVALID_BODY');
   const body=data.message;
   if(typeof body!=='string'||body.trim().length<2||body.length>2000)return bad('INVALID_MESSAGE');
@@ -44,7 +47,7 @@ export async function POST(req:NextRequest) {
  }catch(e){if(e instanceof SyntaxError)return bad('INVALID_JSON');return errorResponse(e);}
 }
 export async function PATCH(req:NextRequest){
- try{if(!sameOrigin(req))return bad('CROSS_ORIGIN',403);const user=await currentUser();if(user?.role!=='admin')return bad('FORBIDDEN',403);
+ try{if(!sameOrigin(req))return bad('CROSS_ORIGIN',403);const user=await currentUser();if(user?.role!=='admin'||!await adminCan(user,'support'))return bad('FORBIDDEN',403);
   const data=await req.json();if(!validId(data?.id)||!['open','closed'].includes(data?.status))return bad('INVALID_STATUS');
   const r=await db().query('UPDATE support_tickets SET status=$1 WHERE id=$2 RETURNING id',[data.status,data.id]);
   if(!r.rowCount)return bad('NOT_FOUND',404);return NextResponse.json({ok:true},{headers:noStore});

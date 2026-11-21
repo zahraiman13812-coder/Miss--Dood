@@ -1,3 +1,4 @@
+import {adminCan} from "@/lib/admin-access";
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@/lib/session";
 import { db } from "@/lib/db";
@@ -12,7 +13,7 @@ function detect(bytes:Buffer):string|null{
  return null;
 }
 export async function GET(){
- try{if((await currentUser())?.role!=="admin")return bad("FORBIDDEN",403);
+ try{if((await currentUser())?.role!=="admin"||!await adminCan(await currentUser(),"catalog"))return bad("FORBIDDEN",403);
  const result=await db().query("SELECT id,filename,mime_type,byte_size,created_at FROM admin_media ORDER BY created_at DESC LIMIT 100");
  return NextResponse.json({items:result.rows},{headers:noStore});
  }catch(e){return errorResponse(e)}
@@ -20,7 +21,7 @@ export async function GET(){
 export async function POST(req:NextRequest){
  try{
  if(!sameOrigin(req))return bad("CROSS_ORIGIN",403);
- const actor=await currentUser();if(actor?.role!=="admin")return bad("FORBIDDEN",403);
+ const actor=await currentUser();if(actor?.role!=="admin"||!await adminCan(await currentUser(),"catalog"))return bad("FORBIDDEN",403);
  const length=Number(req.headers.get("content-length")??0);if(length>MAX+100000)return bad("IMAGE_TOO_LARGE",413);
  const form=await req.formData();const file=form.get("file");
  if(!(file instanceof File)||file.size===0||file.size>MAX)return bad("INVALID_IMAGE_SIZE",413);

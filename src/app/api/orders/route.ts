@@ -79,9 +79,12 @@ export async function POST(req:NextRequest) {try {
   if(!Number.isSafeInteger(fee)||!Number.isSafeInteger(subtotal+fee))throw new OrderError("AMOUNT_OVERFLOW");
   const result=await client.query<{id:string}>(`INSERT INTO orders(user_id,recipient_name,recipient_phone,shipping_address,shipping_city,subtotal,shipping_fee,total,note,idempotency_key,postal_code,latitude,longitude,shipping_method,shipping_province,building,unit) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING id`,[user.id,name,phone,method==="pickup"?storeContact.address:address,city,subtotal,fee,subtotal+fee,note||null,key,method==="pickup"?"":postalCode,hasCoords?lat:null,hasCoords?lng:null,method,method==="pickup"?"تهران":province,method==="pickup"?"":building,method==="pickup"?"":unit]);
   for(const line of lines){
+   const before=rows.rows.find(p=>p.slug===line.slug)!.stock;
    await client.query("UPDATE products SET stock=stock-$1,updated_at=now() WHERE slug=$2",[line.quantity,line.slug]);
+   await client.query("INSERT INTO inventory_movements(product_slug,actor_id,quantity_delta,before_stock,after_stock,reason,order_id) VALUES($1,$2,$3,$4,$5,'order.checkout',$6)",[line.slug,user.id,-line.quantity,before,before-line.quantity,result.rows[0].id]);
    await client.query("INSERT INTO order_items(order_id,product_slug,product_name,unit_price,quantity,amount) VALUES($1,$2,$3,$4,$5,$6)",[result.rows[0].id,line.slug,line.name,line.price,line.quantity,line.amount]);
   }
+  await client.query("INSERT INTO order_events(order_id,actor_id,to_status,note) VALUES($1,$2,'received','ثبت سفارش')",[result.rows[0].id,user.id]);
   return result.rows[0].id;
  });
  return NextResponse.json({orderId},{status:201,headers:noStore});

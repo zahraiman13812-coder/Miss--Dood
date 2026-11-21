@@ -1,7 +1,7 @@
 import type { Product } from "@/data/mock/latestProducts";
 import type { PreviewOrder } from "@/features/preview/orders";
 
-export type CatalogItem = Product & {brand: string; specs: [string,string][]; edited?: boolean};
+export type CatalogItem = Product & {brand: string; specs: [string,string][]; edited?: boolean; images?:string[];rating?:number|null;reviewCount?:number};
 export type ShippingRule = {city:string; fee:number; days:string};
 import type { Ticket } from "@/features/support/tickets";
 export type Store = {

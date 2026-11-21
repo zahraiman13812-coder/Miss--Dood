@@ -1,7 +1,9 @@
+import {adminCan,type AdminArea} from "@/lib/admin-access";
 import { NextRequest, NextResponse } from "next/server";
 import { db, transaction } from "@/lib/db";
 import { currentUser } from "@/lib/session";
 import { bad, errorResponse, noStore, sameOrigin } from "@/lib/http";
+import { validMediaUrl } from "@/lib/catalog-media";
 
 export const runtime = "nodejs";
 const statuses = ["received", "processing", "shipped", "delivered", "cancelled"] as const;
@@ -20,6 +22,7 @@ const validId = (value: unknown): value is string =>
 export async function GET() {
   try {
     if ((await currentUser())?.role !== "admin") return bad("FORBIDDEN", 403);
+    if (!await adminCan(await currentUser(),"reports")) return bad("FORBIDDEN",403);
     const [orders, products, shipping, customers, overview, timeline, bestsellers] = await Promise.all([
       db().query(`SELECT o.id,o.status,o.created_at AS date,o.recipient_name,o.recipient_phone,
         o.shipping_address,o.shipping_city,o.subtotal::float8,o.shipping_fee::float8,o.total::float8,
@@ -74,11 +77,22 @@ export async function PATCH(req: NextRequest) {
     const body: unknown = await req.json();
     if (!body || typeof body !== "object" || Array.isArray(body)) return bad("INVALID_BODY");
     const data = body as Record<string, unknown>;
+    const area:AdminArea = data.type==="stock"?"warehouse":data.type==="status"||data.type==="shipping"||data.type==="shippingStatus"?"orders":"catalog";
+    if (!await adminCan(await currentUser(),area)) return bad("FORBIDDEN",403);
 
     if (data.type === "stock") {
       if (!validSlug(data.slug) || !Number.isSafeInteger(data.stock) || (data.stock as number) < 0 || (data.stock as number) > 1_000_000) return bad("INVALID_STOCK");
-      const result = await db().query("UPDATE products SET stock=$1,updated_at=now() WHERE slug=$2 RETURNING slug", [data.stock, data.slug]);
-      if (!result.rowCount) return bad("NOT_FOUND", 404);
+      const actor = await currentUser();
+      const result = await transaction(async client => {
+        const previous = await client.query<{stock:number}>("SELECT stock FROM products WHERE slug=$1 FOR UPDATE",[data.slug]);
+        if (!previous.rows[0]) return false;
+        const before = previous.rows[0].stock, after=data.stock as number;
+        await client.query("UPDATE products SET stock=$1,updated_at=now() WHERE slug=$2",[after,data.slug]);
+        if(before!==after)await client.query("INSERT INTO inventory_movements(product_slug,actor_id,quantity_delta,before_stock,after_stock,reason) VALUES($1,$2,$3,$4,$5,'admin.adjust')",[data.slug,actor!.id,after-before,before,after]);
+        await client.query("INSERT INTO admin_audit_log(actor_id,action,target) VALUES($1,'inventory.adjust',$2)",[actor!.id,data.slug]);
+        return true;
+      });
+      if (!result) return bad("NOT_FOUND", 404);
     } else if (data.type === "status") {
       if (!validId(data.id) || typeof data.status !== "string" || !statuses.includes(data.status as typeof statuses[number])) return bad("INVALID_STATUS");
       await transaction(async client => {
@@ -88,10 +102,19 @@ export async function PATCH(req: NextRequest) {
         const after = data.status as string;
         if (before !== after && !transitions[before]?.includes(after)) throw new Error("INVALID_TRANSITION");
         if (before !== "cancelled" && after === "cancelled") {
+          // Record each restored item in the inventory ledger.
+          const lines=await client.query<{product_slug:string;quantity:number;stock:number}>(`SELECT i.product_slug,i.quantity,p.stock FROM order_items i JOIN products p ON p.slug=i.product_slug WHERE i.order_id=$1 FOR UPDATE OF p`,[data.id]);
+          const actor=await currentUser();
+          for(const line of lines.rows)await client.query("INSERT INTO inventory_movements(product_slug,actor_id,quantity_delta,before_stock,after_stock,reason,order_id) VALUES($1,$2,$3,$4,$5,'order.cancel',$6)",[line.product_slug,actor?.id??null,line.quantity,line.stock,line.stock+line.quantity,data.id]);
           await client.query(`UPDATE products p SET stock=p.stock+i.quantity,updated_at=now()
             FROM order_items i WHERE i.order_id=$1 AND p.slug=i.product_slug`, [data.id]);
         }
         await client.query("UPDATE orders SET status=$1 WHERE id=$2", [after, data.id]);
+        if(before!==after){
+         const actor=await currentUser();
+         await client.query("INSERT INTO order_events(order_id,actor_id,from_status,to_status) VALUES($1,$2,$3,$4)",[data.id,actor?.id??null,before,after]);
+         await client.query("INSERT INTO admin_audit_log(actor_id,action,target) VALUES($1,'order.status',$2)",[actor?.id??null,data.id]);
+        }
       });
     } else if (data.type === "shipping") {
       if (typeof data.city !== "string" || data.city.trim().length < 2 || data.city.length > 120 ||
@@ -114,18 +137,31 @@ export async function PATCH(req: NextRequest) {
         !(data.priceToman === null || (Number.isSafeInteger(data.priceToman) && (data.priceToman as number) >= 0)) ||
         !Number.isSafeInteger(data.stock) || (data.stock as number) < 0 || (data.stock as number) > 1_000_000) return bad("INVALID_PRODUCT");
       const description = typeof data.description === "string" ? data.description.slice(0, 3000) : "";
-      const image = typeof data.image === "string" && /^\/images\/[\w./-]+$/.test(data.image) && !data.image.includes("..")
-        ? data.image : "/images/categories/lighters.webp";
-      await db().query(`INSERT INTO products(slug,brand,name,category,description,image,price_toman,stock)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8)
-        ON CONFLICT(slug) DO UPDATE SET brand=$2,name=$3,category=$4,description=$5,image=$6,
-          price_toman=$7,stock=$8,updated_at=now()`,
-      [data.slug, data.brand, data.name.trim(), data.category, description, image, data.priceToman, data.stock]);
+      const image = validMediaUrl(data.image) ? data.image : "/images/categories/lighters.webp";
+      const actor = await currentUser();
+      await transaction(async client => {
+        const prev=await client.query<{stock:number;image:string}>("SELECT stock,image FROM products WHERE slug=$1 FOR UPDATE",[data.slug]);
+        if(!await adminCan(actor,"warehouse") && (prev.rows[0]?.stock??0)!==(data.stock as number)) throw new Error("INVENTORY_PERMISSION_REQUIRED");
+        await client.query(`INSERT INTO products(slug,brand,name,category,description,image,price_toman,stock)
+          VALUES($1,$2,$3,$4,$5,$6,$7,$8)
+          ON CONFLICT(slug) DO UPDATE SET brand=$2,name=$3,category=$4,description=$5,image=$6,
+            price_toman=$7,stock=$8,updated_at=now()`,
+          [data.slug,data.brand,(data.name as string).trim(),data.category,description,image,data.priceToman,data.stock]);
+        if(prev.rows[0] && prev.rows[0].stock!==data.stock){
+          const before=prev.rows[0].stock,after=data.stock as number;
+          await client.query("INSERT INTO inventory_movements(product_slug,actor_id,quantity_delta,before_stock,after_stock,reason) VALUES($1,$2,$3,$4,$5,'admin.product.edit')",[data.slug,actor!.id,after-before,before,after]);
+        }
+        const images=await client.query("SELECT id,src FROM product_images WHERE product_slug=$1 ORDER BY sort_order,id LIMIT 1",[data.slug]);
+        if(!images.rowCount)await client.query("INSERT INTO product_images(product_slug,src,alt,sort_order) VALUES($1,$2,$3,0)",[data.slug,image,data.name]);
+        else if(prev.rows[0] && prev.rows[0].image!==image)await client.query("UPDATE product_images SET src=$1 WHERE id=$2",[image,images.rows[0].id]);
+        await client.query("INSERT INTO admin_audit_log(actor_id,action,target) VALUES($1,'product.update',$2)",[actor!.id,data.slug]);
+      });
     } else return bad("INVALID_TYPE");
 
     return NextResponse.json({ ok: true }, { headers: noStore });
   } catch (error) {
     if (error instanceof SyntaxError) return bad("INVALID_JSON");
+    if (error instanceof Error && error.message === "INVENTORY_PERMISSION_REQUIRED") return bad(error.message,403);
     if (error instanceof Error && ["NOT_FOUND", "INVALID_TRANSITION"].includes(error.message)) return bad(error.message, 409);
     return errorResponse(error);
   }

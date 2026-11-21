@@ -67,3 +67,12 @@ select.md-control option {background:#17120f;color:#f5e3be;}
 
 /* Consistent Persian typography in all native controls. */
 input, select, textarea, button { font: inherit; }
+
+/* Mobile polish: safe-area insets, no horizontal overflow, visible focus. */
+@media (max-width: 640px){
+ #main-content { min-width:0;max-width:100%;overflow-x:clip; }
+ #main-content button, #main-content input, #main-content select { touch-action:manipulation; }
+ #main-content :is(h1,h2,h3) { overflow-wrap:anywhere; }
+ #main-content table { border-collapse:collapse; }
+}
+@supports (padding: env(safe-area-inset-bottom)) { .mobile-safe-bottom{padding-bottom:env(safe-area-inset-bottom)} }

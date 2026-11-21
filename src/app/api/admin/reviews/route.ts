@@ -1,0 +1,8 @@
+import {adminCan} from "@/lib/admin-access";
+import {NextRequest,NextResponse} from "next/server";
+import {currentUser} from "@/lib/session";
+import {db,transaction} from "@/lib/db";
+import {bad,noStore,errorResponse,sameOrigin} from "@/lib/http";
+export const runtime="nodejs";
+export async function GET(){try{if((await currentUser())?.role!=="admin"||!await adminCan(await currentUser(),"catalog"))return bad("FORBIDDEN",403);const r=await db().query(`SELECT r.id,r.rating,r.body,r.state,r.created_at,r.product_slug,u.email FROM product_reviews r JOIN users u ON u.id=r.user_id ORDER BY CASE r.state WHEN 'pending' THEN 0 ELSE 1 END,r.created_at DESC LIMIT 200`);return NextResponse.json({reviews:r.rows},{headers:noStore})}catch(e){return errorResponse(e)}}
+export async function PATCH(req:NextRequest){try{if(!sameOrigin(req))return bad("CROSS_ORIGIN",403);const user=await currentUser();if(user?.role!=="admin"||!await adminCan(await currentUser(),"catalog"))return bad("FORBIDDEN",403);const {id,state}=await req.json();if(typeof id!=="string"||!/^[0-9a-f-]{36}$/i.test(id)||!['approved','rejected'].includes(state))return bad("INVALID_REVIEW");await transaction(async c=>{const r=await c.query("UPDATE product_reviews SET state=$1,reviewed_at=now() WHERE id=$2 RETURNING id",[state,id]);if(!r.rowCount)throw Error("NOT_FOUND");await c.query("INSERT INTO admin_audit_log(actor_id,action,target) VALUES($1,$2,$3)",[user.id,`review.${state}`,id])});return NextResponse.json({ok:true},{headers:noStore})}catch(e){if(e instanceof Error&&e.message==="NOT_FOUND")return bad("NOT_FOUND",404);return errorResponse(e)}}

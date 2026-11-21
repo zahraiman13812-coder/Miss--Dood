@@ -3,7 +3,9 @@ import { AnimatedGroup } from "@/components/core/animated-group";
 import { useState } from "react";
 import { useStore, refreshCatalog } from "@/features/store/useStore";
 import { brands } from "@/data/brands";
-import { ProductImageZoom } from "@/components/core/product-image-zoom";
+import ProductGallery from "@/features/catalog/ProductGallery";
+import ProductReviews from "@/features/catalog/ProductReviews";
+import CompareToggle from "@/features/catalog/CompareToggle";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, BadgeCheck, CheckCircle2, ChevronLeft, Heart, PackageSearch, RefreshCw, ShieldCheck, ShoppingBag, Sparkles, Truck } from "lucide-react";
@@ -36,11 +38,7 @@ export default function ProductDetail({slug}:{slug:string}){
  return <main className="mx-auto w-full max-w-[1320px] px-3 py-6 sm:px-6 lg:px-8 lg:py-10">
    <nav aria-label="مسیر صفحه" className="mb-6 flex flex-wrap items-center gap-2 text-sm text-[#c6b99e]"><Link href="/" className="hover:text-[#e6c47b]">خانه</Link><ChevronLeft size={15}/><Link href="/shop" className="hover:text-[#e6c47b]">فروشگاه</Link>{categoryName&&<><ChevronLeft size={15}/><Link href={`/shop?category=${product.category}`} className="hover:text-[#e6c47b]">{categoryName}</Link></>}<ChevronLeft size={15}/><span className="font-bold text-[#e6c47b]">{product.name}</span></nav>
    <article className="grid min-w-0 overflow-hidden rounded-[30px] border border-[#745338] bg-gradient-to-br from-[#1b1412] to-[#0e0d0c] shadow-[0_20px_55px_rgba(0,0,0,.36)] md:grid-cols-2">
-     <div className="relative isolate min-h-[310px] overflow-hidden bg-[radial-gradient(circle_at_center,rgba(155,103,53,.2),transparent_62%),linear-gradient(145deg,#231514,#0d0b09)] sm:min-h-[435px]">
-       <span className="absolute inset-10 rounded-[50%] border border-[#b5894b]/15" aria-hidden="true"/>
-       <ProductImageZoom src={product.image} alt={product.name} priority sizes="(min-width:1300px) 600px,(min-width:768px) 50vw,95vw" className="p-7 sm:p-12"/>
-       <div className="absolute right-4 top-4 rounded-full border border-[#a7834c] bg-[#180e0b]/90 px-4 py-2 text-xs font-bold text-[#f0d49b]">{categoryName || "محصول"}</div>
-     </div>
+     <div className="min-w-0 p-3 sm:p-5"><ProductGallery images={product.images?.length?product.images:[product.image]} alt={product.name}/></div>
      <div className="flex min-w-0 flex-col gap-5 border-t border-[#503a29] p-5 sm:p-8 md:border-r md:border-t-0 lg:p-10">
        <div className="flex items-center gap-2 text-xs font-bold tracking-[.18em] text-[#d7b26a]"><Sparkles size={16}/> MISS DOOD PRODUCT</div>
        <div className="flex items-start justify-between gap-4"><h1 className="text-2xl font-black leading-snug text-[#fff0d7] sm:text-3xl lg:text-4xl">{product.name}</h1><FavoriteButton slug={slug} name={product.name}/></div>
@@ -52,7 +50,7 @@ export default function ProductDetail({slug}:{slug:string}){
          <div className="mt-5"><ProductQuantity product={product}/></div>
        </div>
        <div className="grid grid-cols-2 gap-3 text-center text-xs font-bold text-[#e4d0ad]"><div className="rounded-xl border border-[#65492f] bg-[#120f0c] p-3"><ShieldCheck size={20} className="mx-auto mb-2 text-[#e6c47b]"/> اطلاعات و موجودی از فروشگاه</div><div className="rounded-xl border border-[#65492f] bg-[#120f0c] p-3"><Truck size={20} className="mx-auto mb-2 text-[#e6c47b]"/> روش ارسال در تسویه‌حساب</div></div>
-       <div className="mt-auto flex flex-wrap gap-3"><Link href="/cart" className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-[#dfba75] bg-[#d8b16c] px-4 font-black text-[#1c120d] hover:brightness-110"><ShoppingBag size={18}/> مشاهده سبد خرید <ArrowLeft size={17}/></Link><Link href="/shop" className="flex min-h-12 flex-1 items-center justify-center rounded-xl border border-[#735737] px-4 font-bold text-[#f2d18a] hover:bg-[#3a2023]">بازگشت به فروشگاه</Link></div>
+       <div><CompareToggle slug={slug}/></div><div className="mt-auto flex flex-wrap gap-3"><Link href="/cart" className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-[#dfba75] bg-[#d8b16c] px-4 font-black text-[#1c120d] hover:brightness-110"><ShoppingBag size={18}/> مشاهده سبد خرید <ArrowLeft size={17}/></Link><Link href="/shop" className="flex min-h-12 flex-1 items-center justify-center rounded-xl border border-[#735737] px-4 font-bold text-[#f2d18a] hover:bg-[#3a2023]">بازگشت به فروشگاه</Link></div>
      </div>
    </article>
    {(specs.length>0 || paragraphs.length>0 || product.description)&&<section className="mt-7 overflow-hidden rounded-[26px] border border-[#765638] bg-[#15110e]">
@@ -65,6 +63,6 @@ export default function ProductDetail({slug}:{slug:string}){
        specs.length ? <dl className="divide-y divide-[#4e3b2a]">{specs.map(([label,value])=><div key={label} className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-4 py-4 text-sm"><dt className="font-bold text-[#c4ae88]">{label}</dt><dd className="text-[#f4e8d1]">{value}</dd></div>)}</dl>:<p className="text-[#c4ae88]">مشخصات تکمیلی برای این محصول ثبت نشده است.</p>}
      </div>
    </section>}
-   {related.length>0&&<section className="mt-10"><div className="mb-6 flex flex-wrap items-center justify-between gap-4"><div><p className="mb-2 text-xs font-bold tracking-widest text-[#d2a765]">DISCOVER MORE</p><h2 className="text-2xl font-black text-[#f5e5c8]">محصولات مرتبط</h2></div><Link href={`/shop?category=${product.category}`} className="inline-flex items-center gap-2 text-sm font-bold text-[#e6c47b]">دیدن دسته <ArrowLeft size={17}/></Link></div><AnimatedGroup as="ul" preset="scale" className="grid gap-4 min-[550px]:grid-cols-2 lg:grid-cols-4">{related.map(item=><li key={item.slug}><ProductCard product={item} saveable/></li>)}</AnimatedGroup></section>}
+   <ProductReviews slug={slug}/>{related.length>0&&<section className="mt-10"><div className="mb-6 flex flex-wrap items-center justify-between gap-4"><div><p className="mb-2 text-xs font-bold tracking-widest text-[#d2a765]">DISCOVER MORE</p><h2 className="text-2xl font-black text-[#f5e5c8]">محصولات مرتبط</h2></div><Link href={`/shop?category=${product.category}`} className="inline-flex items-center gap-2 text-sm font-bold text-[#e6c47b]">دیدن دسته <ArrowLeft size={17}/></Link></div><AnimatedGroup as="ul" preset="scale" className="grid gap-4 min-[550px]:grid-cols-2 lg:grid-cols-4">{related.map(item=><li key={item.slug}><ProductCard product={item} saveable/></li>)}</AnimatedGroup></section>}
  </main>;
 }

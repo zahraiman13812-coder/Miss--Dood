@@ -9,7 +9,7 @@ import { FavoriteButton } from "./Favorites";
 import { categories } from "@/data/navigation";
 import { brands } from "@/data/brands";
 
-type CardProduct = Product & {brand?: string};
+type CardProduct = Product & {brand?: string;rating?:number|null;reviewCount?:number};
 export default function ProductCard({product,saveable=false}:{product:CardProduct;saveable?:boolean}) {
  const {stock,catalogStatus}=useStore();
  const category=categories.find(([slug])=>slug===product.category)?.[1] || "محصول";
@@ -28,6 +28,7 @@ export default function ProductCard({product,saveable=false}:{product:CardProduc
    </div>
    <div className="flex flex-1 flex-col gap-3 border-t border-[#5f4732] p-4 sm:p-5">
      {brand&&<span className="text-xs font-bold text-[#c6a05e]">{brand}</span>}
+     {"reviewCount" in product && typeof product.reviewCount==="number" && product.reviewCount>0 && <span className="text-xs text-[#e7c37d]" aria-label={`${product.rating??0} امتیاز از ۵`}>★ {product.rating} ({product.reviewCount.toLocaleString("fa-IR")} نظر)</span>}
      <Link href={`/products/${product.slug}`} className="group/link inline-flex items-start justify-between gap-2 text-base font-black leading-7 text-[#f9edda] hover:text-[#e9c883] sm:text-lg">
        <span>{product.name}</span><ArrowLeft size={17} className="mt-1 shrink-0 text-[#a98352] transition group-hover/link:-translate-x-1"/>
      </Link>

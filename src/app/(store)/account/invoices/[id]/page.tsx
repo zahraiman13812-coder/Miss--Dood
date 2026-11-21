@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { currentUser } from "@/lib/session";
 import PrintButton from "@/features/account/PrintButton";
+import OrderTimeline from "@/features/account/OrderTimeline";
 
 type Order = {
   id: string; created_at: string; status: string; recipient_name: string;
@@ -36,7 +37,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
       <Link href="/account?tab=orders" className="text-sm font-bold text-[#e7c783]">بازگشت به حساب کاربری</Link>
       <PrintButton />
     </div>
-    <article className="rounded-3xl border border-[#967741]/60 bg-[#13110d] p-5 shadow-xl sm:p-9 print:rounded-none print:border-0 print:bg-white print:p-0 print:shadow-none">
+    <OrderTimeline orderId={order.id}/><article className="rounded-3xl border border-[#967741]/60 bg-[#13110d] p-5 shadow-xl sm:p-9 print:rounded-none print:border-0 print:bg-white print:p-0 print:shadow-none">
       <header className="mb-8 flex flex-wrap items-start justify-between gap-4 border-b border-[#987b46]/40 pb-6 print:border-gray-300">
         <div><p className="text-xs font-bold tracking-[.3em] text-[#d5b26e] print:text-black">MISS DOOD</p>
           <h1 className="mt-2 text-2xl font-black">صورتحساب سفارش</h1>
