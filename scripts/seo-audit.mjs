@@ -37,6 +37,8 @@ check(decorPage.includes("export const metadata"), "Decor page must provide meta
 check(decorClient.includes('alt={p.name}'), "Decor images need descriptive alternative text");
 check(shopPage.includes("generateMetadata") && shopPage.includes("index: false"), "Search/filter result variants must be noindex");
 check(product.includes('BreadcrumbList'), "Product pages need BreadcrumbList JSON-LD");
+check(product.includes('"@type": "Product"'), "Product pages need factual Product JSON-LD");
+check(existsSync(join(root, "scripts/seo-live-check.mjs")), "Live SEO audit script must exist");
 
 if (errors.length) {
   for (const e of errors) console.error(`FAIL: ${e}`);

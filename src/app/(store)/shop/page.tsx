@@ -3,6 +3,9 @@ import ShopCatalog from "@/features/catalog/ShopCatalog";
 import {getCms} from "@/lib/site-cms";
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
+// The CMS is loaded from Neon per request, not while generating static pages.
+export const dynamic = "force-dynamic";
+
 const shopMetadata: Metadata = {
   title: "فهرست محصولات",
   description: "مشاهده فهرست محصولات میس دود، اطلاعات کالا، مشخصات و دسته‌بندی‌ها.",

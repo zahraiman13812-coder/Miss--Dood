@@ -8,11 +8,29 @@ export default async function ProductPage({params}:{params:Promise<{slug:string}
   // Breadcrumb markup reflects actual public page hierarchy (no invented reviews/ratings).
   if (!/^[a-z0-9][a-z0-9-]{0,119}$/.test(slug)) return <ProductDetail slug={slug} />;
   let breadcrumb: Record<string, unknown> | null = null;
+  let productSchema: Record<string, unknown> | null = null;
   try {
-    const result = await db().query<{ name: string }>(
-      "SELECT name FROM products WHERE slug=$1 AND active=true AND deleted_at IS NULL", [slug],
+    const result = await db().query<{ name: string; description: string; image: string; brand: string }>(
+      "SELECT name,description,image,brand FROM products WHERE slug=$1 AND active=true AND deleted_at IS NULL", [slug],
     );
     const product = result.rows[0];
+    if (product) {
+      const url = absoluteSiteUrl(`/products/${slug}`);
+      const image = product.image?.startsWith("/") && !product.image.startsWith("//")
+        ? absoluteSiteUrl(product.image)
+        : /^https:\/\/[^\s<>"']+$/.test(product.image ?? "") ? product.image : undefined;
+      // Describe only verified catalog fields; never invent ratings, availability or paid orders.
+      productSchema = {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "@id": `${url}#product`,
+        name: product.name,
+        url,
+        ...(product.description?.trim() ? { description: seoDescription(product.description) } : {}),
+        ...(image ? { image: [image] } : {}),
+        ...(product.brand?.trim() ? { brand: { "@type": "Brand", name: product.brand.trim() } } : {}),
+      };
+    }
     if (product) breadcrumb = {
       "@context": "https://schema.org",
       "@type": "BreadcrumbList",
@@ -26,6 +44,9 @@ export default async function ProductPage({params}:{params:Promise<{slug:string}
     // A transient database failure must not fabricate product data.
   }
   return <>
+    {productSchema && <script type="application/ld+json" dangerouslySetInnerHTML={{
+      __html: JSON.stringify(productSchema).replace(/</g, "\\u003c"),
+    }} />}
     {breadcrumb && <script type="application/ld+json" dangerouslySetInnerHTML={{
       __html: JSON.stringify(breadcrumb).replace(/</g, "\\u003c"),
     }} />}
