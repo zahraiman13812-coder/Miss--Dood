@@ -3,7 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import AdminQuickSearch from "@/components/ops/admin-quick-search";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FilePenLine, Images, Users, Store, ShieldCheck, Menu, X, Boxes, ClipboardList, BarChart3, MessageSquare, Bell, Activity } from "lucide-react";
+import { LayoutDashboard, FilePenLine, Images, Users, Store, ShieldCheck, Menu, X, Boxes, ClipboardList, Truck, BarChart3, MessageSquare, Bell, Activity } from "lucide-react";
 const links = [
   {href:"/admin",label:"داشبورد و عملیات",icon:LayoutDashboard},
   {href:"/admin/content",label:"محتوا و بنرها",icon:FilePenLine},
@@ -15,6 +15,8 @@ const links = [
   {href:"/admin/reviews",label:"نظرات مشتریان",icon:MessageSquare},
   {href:"/admin/analytics",label:"گزارش‌های تحلیلی",icon:BarChart3},
   {href:"/admin/orders",label:"مدیریت سفارش‌ها",icon:ClipboardList},
+  {href:"/admin/customers",label:"مشتریان",icon:Users},
+  {href:"/admin/shipping",label:"ارسال و تعرفه‌ها",icon:Truck},
   {href:"/admin/support",label:"پشتیبانی",icon:MessageSquare},
   {href:"/admin/notifications",label:"اعلان‌ها",icon:Bell},
   {href:"/admin/operations",label:"سلامت و سرعت",icon:Activity},
@@ -33,7 +35,7 @@ export default function AdminShell({children}:{children:ReactNode}){
   if(scope==="manager")return true;
   if(scope==="catalog")return ["/admin/content","/admin/media","/admin/products","/admin/products/new","/admin/reviews"].includes(href);
   if(scope==="warehouse")return href==="/admin/inventory";
-  if(scope==="orders")return href==="/admin/orders";
+  if(scope==="orders")return ["/admin/orders","/admin/shipping"].includes(href);
   return href==="/admin/support";
  };
  useEffect(()=>{setMobileOpen(false)},[path]);
