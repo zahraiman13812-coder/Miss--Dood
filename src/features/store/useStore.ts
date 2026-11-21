@@ -19,7 +19,7 @@ export function refreshCatalog(force=false): Promise<void> {
   if(!res.ok) throw Error("CATALOG_UNAVAILABLE");
   const data = await res.json();
   if(!Array.isArray(data.products) || !data.stock || !Array.isArray(data.shipping)) throw Error("INVALID_CATALOG");
-  updateStore(s => ({...s, products:data.products, stock:data.stock, shipping:data.shipping}));
+  updateStore(s => ({...s, products:data.products, stock:data.stock, shipping:data.shipping,nationalPost:data.nationalPost??null}));
   latestFetch=Date.now(); setStatus("ready");
  }).catch(() => { setStatus("error"); }).finally(() => {inflight=undefined;});
  return inflight;

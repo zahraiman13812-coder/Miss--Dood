@@ -58,8 +58,13 @@ export async function POST(req:NextRequest) {try {
   const previous=await client.query<{id:string}>("SELECT id FROM orders WHERE user_id=$1 AND idempotency_key=$2",[user.id,key]);
   if(previous.rows[0])return previous.rows[0].id;
   const shipping=await client.query<{fee:string}>("SELECT fee::text FROM shipping_rules WHERE city=$1 AND active=true",[city]);
-  if(!shipping.rows[0] && method!=="pickup")throw new OrderError("INVALID_SHIPPING_CITY");
-  let fee = method === "pickup" ? 0 : Number(shipping.rows[0]?.fee);
+  let nationalFee:number|null=null;
+  if(!shipping.rows[0] && method==="post"){
+    const fallback=await client.query<{fee:string}>("SELECT fee::text AS fee FROM national_shipping_policy WHERE id=1 AND active=true");
+    nationalFee=fallback.rows[0]?Number(fallback.rows[0].fee):null;
+  }
+  if(!shipping.rows[0] && nationalFee===null && method!=="pickup")throw new OrderError("INVALID_SHIPPING_CITY");
+  let fee = method === "pickup" ? 0 : Number(shipping.rows[0]?.fee??nationalFee);
   if (method === "express") {
     const express=await client.query<{fee:string}>("SELECT fee::text FROM delivery_config WHERE method='express' AND active=true");
     if(!express.rows[0])throw new OrderError("EXPRESS_UNAVAILABLE");

@@ -11,6 +11,8 @@ import { summarizeCart } from "@/features/cart/cartSummary";
 import { productPrice } from "@/data/mock/latestProducts";
 import LocationPicker, {type Coordinates} from "@/features/account/LocationPicker";
 import {storeContact as defaultContact} from "@/data/storeContact";
+import {IranCitySelect} from "@/features/store/IranCitySelect";
+import {findShippingRule} from "@/features/store/store";
 
 type DeliveryMethod = "pickup" | "express" | "post";
 type Address = { id:string; title:string; recipient_name:string;phone:string;city:string;province:string;building:string;unit:string;address:string;postal_code:string;latitude:number|null;longitude:number|null;preferred_shipping_method?:DeliveryMethod };
@@ -27,7 +29,7 @@ export default function CheckoutPage() {
   const [pickupAddress,setPickupAddress]=useState(defaultContact.address);
   useEffect(()=>{fetch("/api/site-content").then(r=>r.ok?r.json():null).then(v=>{if(typeof v?.contact?.address==="string")setPickupAddress(v.contact.address)}).catch(()=>{});},[]);
   const cart = useCart();
-  const {shipping,city,catalogStatus} = useStore();
+  const {shipping,city,nationalPost,catalogStatus} = useStore();
   const {lines,count,total,stockIssue} = summarizeCart(cart);
   const [method,setMethod] = useState<DeliveryMethod>("post");
   const [recipient,setRecipient] = useState({name:"",phone:"",province:"",building:"",unit:"",address:"",postalCode:""});
@@ -38,6 +40,7 @@ export default function CheckoutPage() {
   const [error,setError] = useState("");
   const [review,setReview] = useState(false);
   const [receipt,setReceipt] = useState("");
+  const [demoResult,setDemoResult]=useState<string>("");
   const requestId = useRef<string|null>(null);
   const lock=useRef(false);
   useEffect(()=> {
@@ -53,7 +56,7 @@ export default function CheckoutPage() {
     return ()=>{active=false;};
   },[]);
   const selectedCity = method === "post" ? city : "تهران";
-  const postalRule = shipping.find(rule=>rule.city===selectedCity);
+  const postalRule = findShippingRule(shipping,selectedCity,nationalPost);
   const shippingFee = method === "pickup" ? 0 : method === "express" && settings?.express?.active ? settings.express.fee : method === "post" ? postalRule?.fee : null;
   const canCheckout = catalogStatus==="ready" && !!count && !stockIssue && total!==null && shippingFee!==undefined && shippingFee!==null && Number.isSafeInteger(total+shippingFee);
   const signature = JSON.stringify({cart,recipient,coords,selectedCity,method});
@@ -64,8 +67,7 @@ export default function CheckoutPage() {
     setRecipient({name:found.recipient_name,phone:found.phone,province:found.province||"",building:found.building||"",unit:found.unit||"",address:found.address,postalCode:found.postal_code||""});
     setCoords(found.latitude!=null&&found.longitude!=null?{lat:found.latitude,lng:found.longitude}:null);
     if(found.preferred_shipping_method && (found.preferred_shipping_method==="post" || found.city==="تهران"))setMethod(found.preferred_shipping_method);
-    if(shipping.some(rule=>rule.city===found.city))updateStore(old=>({...old,city:found.city}));
-    else setError("این شهر فعلاً در فهرست ارسال پستی موجود نیست؛ شهر را از فهرست انتخاب کنید.");
+    updateStore(old=>({...old,city:found.city}));
   }
   const validPhone = /^\+?[0-9۰-۹٠-٩ \-]{8,22}$/.test(recipient.phone.trim());
   const postalCode = recipient.postalCode.replace(/[۰-۹]/g,c=>String(c.charCodeAt(0)-1776)).replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-1632));
@@ -88,7 +90,13 @@ export default function CheckoutPage() {
       if(!response.ok){const messages:Record<string,string>={AUTH_REQUIRED:"برای سفارش وارد حساب شوید.",EXPRESS_UNAVAILABLE:"ارسال اکسپرس فعلاً فعال نیست.",INVALID_SHIPPING_CITY:"برای شهر انتخاب‌شده تعرفه وجود ندارد.",INVALID_POSTAL_CODE:"کد پستی معتبر نیست.",LOCATION_REQUIRED:"موقعیت روی نقشه را انتخاب کنید.",INSUFFICIENT_STOCK:"موجودی کالا کافی نیست.",PRODUCT_UNAVAILABLE:"یک محصول دیگر موجود نیست."};throw Error(messages[data.error]||"ثبت سفارش ناموفق بود.");}
       setReceipt(data.orderId);
       for(const [slug,qty] of Object.entries(cart))changeQuantity(slug,-qty);
+      void fetch("/api/cart-snapshot",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({items:{}})}).catch(()=>{});
     }catch(e){setError(e instanceof Error?e.message:"خطا در اتصال به سرور");}finally{lock.current=false;setBusy(false);}
+  }
+  async function previewOrder(){
+    const problem=validate();if(problem){setError(problem);return;}
+    setBusy(true);setError("");setDemoResult("");
+    try{const response=await fetch("/api/orders/preview",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({recipientName:recipient.name,recipientPhone:recipient.phone,shippingAddress:method==="pickup"?"":recipient.address,shippingProvince:recipient.province,building:recipient.building,postalCode,latitude:coords?.lat??null,longitude:coords?.lng??null,shippingCity:selectedCity,shippingMethod:method,items:lines.map(l=>({slug:l.product.slug,quantity:l.quantity}))})});const result=await response.json();if(!response.ok)throw Error(result.error??"امکان تست این سفارش نیست");setDemoResult(`تست موفق: مجموع ${Number(result.total).toLocaleString("fa-IR")} تومان. هیچ سفارشی ثبت نشد، پولی دریافت نشد و موجودی تغییر نکرد.`)}catch(e){setError(e instanceof Error?e.message:"تست ناموفق بود")}finally{setBusy(false)}
   }
   if(receipt)return <main className="mx-auto w-full max-w-2xl space-y-4 p-6"><PurchaseSteps current={3}/><div className={panel}><PackageCheck size={38} className="text-[#ecc87d]"/><h1 className="mt-3 text-2xl font-black text-[#f0d08d]">سفارش ثبت شد</h1><p className="mt-3 break-all">شناسه سفارش: <bdi>{receipt}</bdi></p><p className="mt-3 text-sm text-[#cdbb96]">پرداخت آنلاین فعال نیست؛ ثبت سفارش رسید پرداخت محسوب نمی‌شود.</p><Link className="mt-4 inline-block text-[#e8c477]" href="/orders">پیگیری سفارش</Link></div></main>;
   return <main className="mx-auto w-full max-w-3xl space-y-5 px-4 py-8 text-[#f5ead4]"><PurchaseSteps current={review?2:1}/><h1 className="text-2xl font-black">{review?"مرور نهایی سفارش":"مشخصات گیرنده و روش تحویل"}</h1>
@@ -99,7 +107,7 @@ export default function CheckoutPage() {
       {lines.map(l=><div key={l.product.slug} className="flex justify-between gap-4 border-b border-[#56462d] pb-2 text-sm"><span>{l.product.name} × {l.quantity}</span><span>{productPrice(l.amount)}</span></div>)}
       <p>جمع کالاها: {productPrice(total)}</p><p>هزینه ارسال: {productPrice(shippingFee??0)}</p><p className="text-lg font-bold text-[#e8c477]">مبلغ کل: {productPrice(total+(shippingFee??0))}</p>
       {error&&<p role="alert" className="text-red-300">{error}</p>}
-      <button type="button" onClick={submit} disabled={busy} className={`${gold} w-full`}>{busy?"در حال ثبت":"ثبت قطعی سفارش"}</button>
+      <button type="button" onClick={()=>void previewOrder()} disabled={busy} className="min-h-12 w-full rounded-xl border border-[#e8ce8d] p-3 text-[#e8ce8d]">آزمایش سفارش بدون پرداخت و بدون ثبت واقعی</button><p role="status" className="text-sm text-[#e8ce8d]">{demoResult}</p><button type="button" onClick={submit} disabled={busy} className={`${gold} w-full`}>{busy?"در حال ثبت":"ثبت واقعی سفارش (بدون پرداخت آنلاین)"}</button>
       <button type="button" onClick={()=>setReview(false)} className="w-full rounded-xl border border-[#795f36] p-3 text-[#e7c47c]">بازگشت و ویرایش</button>
     </section>:
     <form className={`${panel} space-y-5`} onSubmit={proceed}>
@@ -116,7 +124,7 @@ export default function CheckoutPage() {
         {savedAddresses.length>0 && method!=="pickup" && <label className="sm:col-span-2">آدرس ذخیره‌شده<select className={input} defaultValue="" onChange={e=>applySavedAddress(e.target.value)}><option value="">ورود دستی</option>{savedAddresses.map(a=><option key={a.id} value={a.id}>{a.title} — {a.city}</option>)}</select></label>}
         <label>نام و نام خانوادگی<input required autoComplete="name" maxLength={120} className={input} value={recipient.name} onChange={e=>setRecipient(old=>({...old,name:e.target.value}))}/></label>
         <label>شماره تماس<input required type="tel" dir="ltr" autoComplete="tel" maxLength={22} className={input} value={recipient.phone} onChange={e=>setRecipient(old=>({...old,phone:e.target.value}))}/></label>
-        {method!=="pickup" && <><label>استان<input required maxLength={80} className={input} value={recipient.province} onChange={e=>setRecipient(old=>({...old,province:e.target.value}))} placeholder="مثلاً تهران"/></label><label>شهر ارسال<select required className={input} value={city} onChange={e=>updateStore(old=>({...old,city:e.target.value}))}><option value="">انتخاب شهر</option>{shipping.map(r=><option key={r.city} value={r.city}>{r.city}</option>)}</select></label>
+        {method!=="pickup" && <><IranCitySelect province={recipient.province} city={city} className={input} onChange={(province,nextCity)=>{setRecipient(old=>({...old,province}));updateStore(old=>({...old,city:nextCity}));}}/>
           <label>کد پستی ۱۰ رقمی<input required dir="ltr" inputMode="numeric" maxLength={10} className={input} value={recipient.postalCode} onChange={e=>setRecipient(old=>({...old,postalCode:e.target.value}))}/></label>
           <label>پلاک / ساختمان<input required maxLength={40} className={input} value={recipient.building} onChange={e=>setRecipient(old=>({...old,building:e.target.value}))}/></label>
           <label>واحد<input maxLength={40} className={input} value={recipient.unit} onChange={e=>setRecipient(old=>({...old,unit:e.target.value}))}/></label>

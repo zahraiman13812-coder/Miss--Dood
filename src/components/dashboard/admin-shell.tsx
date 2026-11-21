@@ -15,6 +15,7 @@ const links = [
   {href:"/admin/reviews",label:"نظرات مشتریان",icon:MessageSquare},
   {href:"/admin/analytics",label:"گزارش‌های تحلیلی",icon:BarChart3},
   {href:"/admin/orders",label:"مدیریت سفارش‌ها",icon:ClipboardList},
+  {href:"/admin/carts",label:"سبدهای خرید",icon:ClipboardList},
   {href:"/admin/customers",label:"مشتریان",icon:Users},
   {href:"/admin/shipping",label:"ارسال و تعرفه‌ها",icon:Truck},
   {href:"/admin/support",label:"پشتیبانی",icon:MessageSquare},
@@ -35,7 +36,7 @@ export default function AdminShell({children}:{children:ReactNode}){
   if(scope==="manager")return true;
   if(scope==="catalog")return ["/admin/content","/admin/media","/admin/products","/admin/products/new","/admin/reviews"].includes(href);
   if(scope==="warehouse")return href==="/admin/inventory";
-  if(scope==="orders")return ["/admin/orders","/admin/shipping"].includes(href);
+  if(scope==="orders")return ["/admin/orders","/admin/carts","/admin/shipping"].includes(href);
   return href==="/admin/support";
  };
  useEffect(()=>{setMobileOpen(false)},[path]);

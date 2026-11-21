@@ -1,7 +1,9 @@
 "use client";
-import { useState } from "react";
+import {useState} from "react";
 import { productPrice } from "@/data/mock/latestProducts";
-import { updateStore, type ShippingRule } from "./store";
+import { updateStore, findShippingRule, type ShippingRule } from "./store";
+import {IranCitySelect} from "./IranCitySelect";
+
 import { useStore } from "./useStore";
 
 export function ShippingAmount({rule,subtotal}:{rule:ShippingRule;subtotal:number}) {
@@ -12,14 +14,13 @@ export function ShippingAmount({rule,subtotal}:{rule:ShippingRule;subtotal:numbe
   </dl>;
 }
 export function ShippingPicker({subtotal}:{subtotal:number}) {
-  const {shipping,city}=useStore();
+  const {shipping,city,nationalPost}=useStore();
+  const [province,setProvince]=useState("");
   const [error,setError]=useState("");
-  const rule=shipping.find(r=>r.city===city);
+  const rule=findShippingRule(shipping,city,nationalPost);
   return <section className="my-4 rounded-xl border border-[#62472b] bg-[#15100e] p-3 text-sm">
-    <label className="block font-bold">شهر تحویل<select className="md-control my-2 block w-full" value={rule?.city || ""} onChange={e=>{
-      try {updateStore(s=>({...s,city:e.target.value}));setError("");} catch {setError("ذخیرهٔ شهر ممکن نیست.");}
-    }}><option value="">انتخاب شهر</option>{shipping.map(r=><option key={r.city}>{r.city}</option>)}</select></label>
-    <p className="text-xs leading-6 text-muted">{shipping.length ? "ارسال فقط به شهرهای این فهرست فعال است." : "مقصد و تعرفهٔ ارسال هنوز از سوی فروشگاه اعلام نشده است."}</p>
+    <p className="font-bold">مقصد ارسال پستی</p><div className="mt-2 grid gap-3 sm:grid-cols-2"><IranCitySelect className="md-control mt-1 block w-full" province={province} city={city} onChange={(p,c)=>{setProvince(p);updateStore(s=>({...s,city:c}));setError("")}}/></div>
+    <p className="mt-2 text-xs leading-6 text-muted">هزینه پست فقط برای مقصدهای دارای تعرفه اختصاصی یا تعرفه سراسری فعال قابل محاسبه است.</p>
     {rule && <ShippingAmount subtotal={subtotal} rule={rule}/>}<p role="status">{error}</p>
   </section>;
 }

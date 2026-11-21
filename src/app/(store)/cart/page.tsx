@@ -3,6 +3,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft, Gift, Package, ShieldCheck, ShoppingBag, Trash2, Truck } from "lucide-react";
 import { ShippingPicker } from "@/features/store/Shipping";
+import {findShippingRule} from "@/features/store/store";
+import {useEffect} from "react";
 import { useStore } from "@/features/store/useStore";
 import PurchaseSteps from "@/features/cart/PurchaseSteps";
 import { productPrice } from "@/data/mock/latestProducts";
@@ -11,12 +13,14 @@ import { summarizeCart } from "@/features/cart/cartSummary";
 import ProductQuantity from "@/features/cart/ProductQuantity";
 
 export default function CartPage(){
- const {shipping,city,catalogStatus}=useStore();
+ const {shipping,city,nationalPost,catalogStatus}=useStore();
  const cart=useCart();
+ const cartFingerprint=JSON.stringify(cart);
  const {lines,count,total,stockIssue}=summarizeCart(cart);
  const missingProducts=Object.keys(cart).filter(slug=>!lines.some(line=>line.product.slug===slug));
- const rule=shipping.find(item=>item.city===city);
- const canCheckout=total!==null && !stockIssue && missingProducts.length===0 && !!rule && catalogStatus==="ready";
+ const rule=findShippingRule(shipping,city,nationalPost);
+ useEffect(()=>{if(catalogStatus!=="ready")return;const timer=setTimeout(()=>{void fetch("/api/cart-snapshot",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({items:JSON.parse(cartFingerprint)})}).catch(()=>{})},750);return ()=>clearTimeout(timer)},[cartFingerprint,catalogStatus]);
+ const canCheckout=total!==null && !stockIssue && missingProducts.length===0 && catalogStatus==="ready";
  return <main className="mx-auto w-full max-w-[1300px] space-y-6 px-3 py-7 sm:px-6 lg:px-8 lg:py-10">
    <header className="relative overflow-hidden rounded-[28px] border border-[#7a523b] bg-gradient-to-l from-[#32161e] via-[#1a1110] to-[#100e0b] p-6 sm:p-8">
      <div className="pointer-events-none absolute -left-20 -top-24 size-72 rounded-full border border-[#be9255]/10"/>

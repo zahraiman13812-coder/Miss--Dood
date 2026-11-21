@@ -4,14 +4,18 @@ import type { PreviewOrder } from "@/features/preview/orders";
 export type CatalogItem = Product & {brand: string; specs: [string,string][]; edited?: boolean; images?:string[];rating?:number|null;reviewCount?:number};
 export type ShippingRule = {city:string; fee:number; days:string};
 import type { Ticket } from "@/features/support/tickets";
+export type NationalPost={fee:number;days:string;active:boolean};
+export function findShippingRule(shipping:ShippingRule[],city:string,nationalPost:NationalPost|null){
+  const direct=shipping.find(x=>x.city===city);return direct??(nationalPost?.active && city?{city,fee:nationalPost.fee,days:nationalPost.days}:undefined);
+}
 export type Store = {
   products:CatalogItem[]; stock:Record<string,number>; shipping:ShippingRule[];
-  city:string; orders:PreviewOrder[]; tickets:Ticket[];
+  city:string; nationalPost:NationalPost|null; orders:PreviewOrder[]; tickets:Ticket[];
 };
 const key = "miss-dood.store.v2";
 const event = "miss-dood-store-change";
 export const initial:Store = {
-  products:[], stock:{}, shipping:[], city:"", orders:[], tickets:[]
+  products:[], stock:{}, shipping:[], city:"", nationalPost:null, orders:[], tickets:[]
 };
 let cachedRaw:string | null = null;
 let cached:Store = initial;
