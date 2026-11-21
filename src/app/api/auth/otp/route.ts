@@ -4,7 +4,7 @@ import { db, transaction } from "@/lib/db";
 import { bad, errorResponse, noStore, sameOrigin } from "@/lib/http";
 import { currentUser, hashPassword, issueSession } from "@/lib/session";
 import { consumeAuthAttempt } from "@/lib/authRateLimit";
-
+import { sendOtpEmail } from "@/lib/otp-mailer";
 export const runtime = "nodejs";
 
 function validEmail(value: unknown): value is string {
@@ -20,49 +20,7 @@ function safeEqual(a: string, b: string) {
   return timingSafeEqual(Buffer.from(a, "hex"), Buffer.from(b, "hex"));
 }
 
-async function sendEmail(to: string, code: string) {
-  const apiKey = process.env.RESEND_API_KEY?.trim();
-  const rawSender = process.env.EMAIL_FROM?.trim();
-  if (!apiKey || !rawSender) throw new Error("EMAIL_NOT_CONFIGURED");
 
-  // Vercel values are literal. Accidental wrapping quotes or a pasted
-  // EMAIL_FROM= assignment should not be sent as part of Resend's `from`.
-  let sender = rawSender.replace(/^EMAIL_FROM\s*=\s*/i, "").trim();
-  for (let n = 0; n < 2; n++) {
-    if ((sender.startsWith('"') && sender.endsWith('"')) ||
-        (sender.startsWith("'") && sender.endsWith("'"))) {
-      sender = sender.slice(1, -1).trim();
-    }
-  }
-  // Accept a plain address OR a standard "Display Name <address>" value,
-  // then canonicalize the sender name to MISS DOOD.
-  const displayAddress = /^(?:[^<>]*?)<([^<>]+)>$/.exec(sender);
-  const address = (displayAddress ? displayAddress[1] : sender).trim();
-  if (!/^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?$/.test(address) ||
-      address.includes("..") || /[\r\n\t\s]/.test(address)) {
-    console.error("OTP email sender configuration is invalid (EMAIL_FROM format)");
-    throw new Error("RESEND_SENDER_INVALID");
-  }
-  const from = `MISS DOOD <${address}>`;
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      from,
-      to: [to],
-      subject: "کد ورود به MISS DOOD",
-      text: `کد ورود شما: ${code}\nاین کد تا ۱۰ دقیقه معتبر است و فقط یک بار قابل استفاده است. اگر شما درخواست نداده‌اید، این پیام را نادیده بگیرید.`,
-      html: `<div dir="rtl" style="font-family:Tahoma,Arial,sans-serif;background:#11100d;color:#f5efe2;padding:32px;border:1px solid #806638;border-radius:18px;text-align:center"><h2>کد ورود به MISS DOOD</h2><p style="color:#c7b895">برای ورود، کد زیر را در سایت وارد کنید.</p><div style="display:inline-block;background:#090806;border:1px solid #b08b4b;border-radius:12px;padding:18px 28px;font-size:32px;letter-spacing:10px;font-weight:bold;color:#f0d8a7">${code}</div><p style="color:#c7b895">این کد تا ۱۰ دقیقه معتبر است و فقط یک‌بار قابل استفاده است.</p></div>`,
-    }),
-    cache: "no-store",
-  });
-  if (!response.ok) {
-    console.error("Resend delivery failed", { status: response.status });
-    if (response.status === 401 || response.status === 403) throw new Error("RESEND_ACCESS_DENIED");
-    if (response.status === 422) throw new Error("RESEND_SENDER_INVALID");
-    throw new Error("EMAIL_DELIVERY_FAILED");
-  }
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -120,7 +78,7 @@ export async function POST(request: NextRequest) {
         );
       });
       try {
-        await sendEmail(email, code);
+        await sendOtpEmail(email, code);
       } catch (error) {
         // A rejected email must not leave a one-minute cooldown or burn the daily quota.
         // Match the hash so a failed overlapping attempt cannot invalidate a newer code.
@@ -128,8 +86,6 @@ export async function POST(request: NextRequest) {
           SET consumed_at=now(),send_count=GREATEST(send_count-1,0),last_sent_at='epoch'::timestamptz
           WHERE email=$1 AND code_hash=$2 AND consumed_at IS NULL`, [email, digest]);
         if (error instanceof Error && error.message === "EMAIL_NOT_CONFIGURED") return bad("EMAIL_NOT_CONFIGURED", 503);
-        if (error instanceof Error && error.message === "RESEND_ACCESS_DENIED") return bad("RESEND_ACCESS_DENIED", 503);
-        if (error instanceof Error && error.message === "RESEND_SENDER_INVALID") return bad("RESEND_SENDER_INVALID", 503);
         return bad("EMAIL_SEND_FAILED", 503);
       }
       return NextResponse.json({ ok: true }, { headers: noStore });
