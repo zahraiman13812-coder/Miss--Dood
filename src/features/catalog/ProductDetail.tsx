@@ -46,7 +46,7 @@ export default function ProductDetail({slug}:{slug:string}){
        <p className="text-sm leading-8 text-[#d1c1a7]">{product.description || "برای مشاهده مشخصات و ثبت سفارش از بخش زیر استفاده کنید."}</p>
        <div className="rounded-2xl border border-[#754e37] bg-gradient-to-l from-[#331a1c]/75 to-[#1c1511] p-5">
          <p className="text-xs font-bold text-[#c6af8b]">قیمت محصول</p><p className="mt-2 text-2xl font-black tabular-nums text-[#f1cb82] sm:text-3xl">{productPrice(product.priceToman)}</p>
-         <div className="mt-3 flex items-center gap-2 text-xs font-bold text-[#d4c4a6]">{availability>0?<><CheckCircle2 size={16} className="text-[#92c48b]"/> موجودی: {availability.toLocaleString("fa-IR")} عدد</>:<><PackageSearch size={16} className="text-[#d89a98]"/> فعلاً ناموجود</>}</div>
+         <div className="mt-3 flex items-center gap-2 text-xs font-bold text-[#d4c4a6]">{availability>0?<><CheckCircle2 size={16} className="text-[#92c48b]"/> موجود</>:<><PackageSearch size={16} className="text-[#d89a98]"/> فعلاً ناموجود</>}</div>
          <div className="mt-5"><ProductQuantity product={product}/></div>
        </div>
        <div className="grid grid-cols-2 gap-3 text-center text-xs font-bold text-[#e4d0ad]"><div className="rounded-xl border border-[#65492f] bg-[#120f0c] p-3"><ShieldCheck size={20} className="mx-auto mb-2 text-[#e6c47b]"/> اطلاعات و موجودی از فروشگاه</div><div className="rounded-xl border border-[#65492f] bg-[#120f0c] p-3"><Truck size={20} className="mx-auto mb-2 text-[#e6c47b]"/> روش ارسال در تسویه‌حساب</div></div>

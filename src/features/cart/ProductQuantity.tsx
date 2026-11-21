@@ -19,7 +19,7 @@ export default function ProductQuantity({ product }: { product: Product }) {
   }
 
   return (
-        <div><p className="mb-2 text-xs text-muted">{available === undefined ? "موجودی اعلام نشده" : available === 0 ? "ناموجود" : 'موجودی: ' + available.toLocaleString("fa-IR") + ' عدد'}{selected && quantity > (available ?? 0) && " · تعداد سبد را کاهش دهید"}</p>
+        <div><p className="mb-2 text-xs text-muted">{available === undefined ? "موجودی اعلام نشده" : available === 0 ? "ناموجود" : "موجود"}{selected && quantity > (available ?? 0) && " · تعداد سبد را کاهش دهید"}</p>
         <div role="group" aria-label={`سبد خرید، ${product.name}`}
           className={`relative z-10 flex min-h-12 items-center rounded-xl border p-0.5 ${selected ? "justify-between border-line bg-header" : "border-accent bg-accent"}`}>
           <button ref={addButton} disabled={full} type="button" onClick={() => changeQuantity(product.slug, 1)}
