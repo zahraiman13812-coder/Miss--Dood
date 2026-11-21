@@ -34,7 +34,7 @@ export async function GET(req:NextRequest){
   const actor=await currentUser();if(!actor||!await adminCan(actor,"catalog"))return bad("FORBIDDEN",403);
   const slug=req.nextUrl.searchParams.get("slug");if(!validSlug(slug))return bad("INVALID_SLUG");
   const [p,imgs]=await Promise.all([
-   db().query(`SELECT slug,name,category,brand,description,image,price_toman::float8 AS "priceToman",stock,active,specs FROM products WHERE slug=$1`,[slug]),
+   db().query(`SELECT slug,name,category,brand,description,image,price_toman::float8 AS "priceToman",stock,active,specs FROM products WHERE slug=$1 AND deleted_at IS NULL`,[slug]),
    db().query(`SELECT src,alt FROM product_images WHERE product_slug=$1 ORDER BY sort_order,id`,[slug])
   ]);
   if(!p.rows[0])return bad("NOT_FOUND",404);
@@ -54,7 +54,7 @@ export async function PUT(req:NextRequest){
   if(mode!=="create"&&mode!=="edit")return bad("INVALID_MODE");
   const hasStockPermission=await adminCan(actor,"warehouse");
   const result=await transaction(async c=>{
-   const old=await c.query<{stock:number}>("SELECT stock FROM products WHERE slug=$1 FOR UPDATE",[data.slug]);
+   const old=await c.query<{stock:number}>("SELECT stock FROM products WHERE slug=$1 AND deleted_at IS NULL FOR UPDATE",[data.slug]);
    if(mode==="create"&&old.rowCount)return "ALREADY_EXISTS";
    if(mode==="edit"&&!old.rowCount)return "NOT_FOUND";
    if(!hasStockPermission && old.rows[0] && old.rows[0].stock!==data.stock)return "INVENTORY_PERMISSION_REQUIRED";
@@ -74,4 +74,24 @@ export async function PUT(req:NextRequest){
   if(result!=="OK")return bad(result,result==="NOT_FOUND"?404:result==="INVENTORY_PERMISSION_REQUIRED"?403:409);
   return NextResponse.json({ok:true,slug:data.slug},{headers:noStore});
  }catch(e){if(e instanceof SyntaxError)return bad("INVALID_JSON");return errorResponse(e)}
+}
+
+/** Reversible archival: retain purchase history, inventory ledger and media references. */
+export async function DELETE(req:NextRequest){
+ try{
+  if(!sameOrigin(req))return bad("CROSS_ORIGIN",403);
+  const actor=await currentUser();
+  if(!actor||!await adminCan(actor,"catalog"))return bad("FORBIDDEN",403);
+  const slug=req.nextUrl.searchParams.get("slug");
+  if(!validSlug(slug))return bad("INVALID_SLUG",400);
+  const result=await transaction(async client=>{
+   const product=await client.query<{slug:string}>("SELECT slug FROM products WHERE slug=$1 AND deleted_at IS NULL FOR UPDATE",[slug]);
+   if(!product.rows[0])return false;
+   await client.query("UPDATE products SET active=false,deleted_at=now(),updated_at=now() WHERE slug=$1",[slug]);
+   await client.query("INSERT INTO admin_audit_log(actor_id,action,target) VALUES($1,$2,$3)",[actor.id,"product.archive",slug]);
+   return true;
+  });
+  if(!result)return bad("NOT_FOUND",404);
+  return NextResponse.json({ok:true,archived:true},{headers:noStore});
+ }catch(e){return errorResponse(e)}
 }

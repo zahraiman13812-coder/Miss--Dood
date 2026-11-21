@@ -15,6 +15,7 @@ const getMessage=(code:string)=>({INVALID_PRODUCT:"یکی از اطلاعات م
 export default function ProductEditor({mode,slug}:{mode:"create"|"edit";slug?:string}){
  const router=useRouter();
  const [value,setValue]=useState<Product>({...empty});
+ const [deleting,setDeleting]=useState(false);
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(mode==="edit"),[message,setMessage]=useState(""),[scope,setScope]=useState("loading");
  const [catalog,setCatalog]=useState<{slug:string;label:string;brands:{slug:string;label:string}[]}[]>([]);
  const load=useCallback(async()=>{
@@ -51,9 +52,22 @@ export default function ProductEditor({mode,slug}:{mode:"create"|"edit";slug?:st
   setMessage("محصول، تصاویر و مشخصات فنی با موفقیت ذخیره شدند.");
   if(mode==="create")router.replace(`/admin/products/${value.slug}`);
  }catch(e){setMessage(e instanceof Error?e.message:"خطا در ذخیره")}finally{setBusy(false)}}
+ async function deleteProduct(){
+  if(mode!=="edit"||!slug||busy||deleting)return;
+  if(!window.confirm(`آیا می‌خواهید «${value.name}» از فروشگاه حذف شود؟\nاین عملیات محصول را از فروشگاه و فهرست عادی مدیریت مخفی می‌کند؛ سوابق سفارش‌ها حفظ می‌شوند.`))return;
+  const confirmation=window.prompt(`برای تأیید حذف، شناسه محصول را دقیقاً وارد کنید:\n${slug}`);
+  if(confirmation!==slug){if(confirmation!==null)setMessage("شناسه واردشده صحیح نیست؛ محصول حذف نشد.");return;}
+  setDeleting(true);setMessage("");
+  try{
+   const response=await fetch(`/api/admin/product-editor?slug=${encodeURIComponent(slug)}`,{method:"DELETE"});
+   const result=await response.json().catch(()=>({error:"DELETE_FAILED"}));
+   if(!response.ok)throw Error(getMessage(result.error??"حذف محصول ناموفق بود"));
+   router.replace("/admin/products");router.refresh();
+  }catch(e){setMessage(e instanceof Error?e.message:"خطا در حذف محصول");setDeleting(false)}
+ }
  if(loading)return <main className="p-8">در حال بارگذاری محصول…</main>;
  return <main dir="rtl" className="mx-auto max-w-6xl space-y-6 px-3 py-6 sm:px-7 sm:py-9">
-  <div className="flex flex-wrap items-start justify-between gap-3"><div><Link href="/admin/products" className="inline-flex min-h-11 items-center gap-2 text-sm text-[#e5bd78]"><ArrowRight size={17}/> همه محصولات</Link><h1 className="mt-2 text-2xl font-black">{mode==="create"?"افزودن محصول جدید":`ویرایش محصول: ${value.name}`}</h1><p className="mt-2 text-sm text-[#bda88b]">اطلاعات، تصاویر و مشخصات فنی را در همین صفحه وارد کنید و یک‌جا ذخیره کنید.</p></div><Link href="/admin/products/new" className={btn}><Plus size={17}/>محصول جدید</Link></div>
+  <div className="flex flex-wrap items-start justify-between gap-3"><div><Link href="/admin/products" className="inline-flex min-h-11 items-center gap-2 text-sm text-[#e5bd78]"><ArrowRight size={17}/> همه محصولات</Link><h1 className="mt-2 text-2xl font-black">{mode==="create"?"افزودن محصول جدید":`ویرایش محصول: ${value.name}`}</h1><p className="mt-2 text-sm text-[#bda88b]">اطلاعات، تصاویر و مشخصات فنی را در همین صفحه وارد کنید و یک‌جا ذخیره کنید.</p></div><div className="flex flex-wrap items-center gap-2"><Link href="/admin/products/new" className={btn}><Plus size={17}/>محصول جدید</Link>{mode==="edit"&&<button type="button" onClick={()=>void deleteProduct()} disabled={busy||deleting||loading} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#a9434a] bg-[#41181d] px-4 py-2 text-sm font-bold text-[#ffd1d1] transition hover:bg-[#63232b] disabled:opacity-40"><Trash2 size={17}/>{deleting?"در حال حذف…":"حذف محصول"}</button>}</div></div>
   <form onSubmit={e=>void save(e)} className="space-y-5">
    <section className={panel}><h2 className="text-lg font-bold text-[#efd09a]">۱. اطلاعات اصلی محصول</h2><div className="grid gap-4 sm:grid-cols-2">
     <label>شناسه یکتا (انگلیسی)<input className={control} required pattern="[a-z0-9][a-z0-9-]{0,119}" maxLength={120} disabled={mode==="edit"} value={value.slug} onChange={e=>set({slug:e.target.value.toLowerCase()})}/></label>
@@ -70,7 +84,7 @@ export default function ProductEditor({mode,slug}:{mode:"create"|"edit";slug?:st
    {!value.images.length&&<p className="rounded-xl border border-dashed border-[#705437] p-8 text-center text-sm">هنوز تصویری انتخاب نشده است.</p>}</section>
    <section className={panel}><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-bold text-[#efd09a]">۳. مشخصات فنی</h2><p className="mt-1 text-xs text-[#b9a081]">حداکثر ۳۰ مشخصه برای نمایش و مقایسه محصولات</p></div><button type="button" disabled={value.specs.length>=30} className={btn} onClick={()=>setValue(v=>({...v,specs:[...v.specs,["",""]]}))}><Plus size={17}/>افزودن مشخصه</button></div>
    <div className="space-y-3">{value.specs.map(([name,val],i)=><div key={i} className="grid gap-2 rounded-xl border border-[#725536] p-3 sm:grid-cols-[1fr_1fr_auto]"><input className={control} aria-label={`نام مشخصه ${i+1}`} placeholder="عنوان (مثلاً جنس)" maxLength={140} value={name} onChange={e=>setValue(v=>({...v,specs:v.specs.map((x,j)=>j===i?([e.target.value,x[1]] as [string,string]):x)}))}/><input className={control} aria-label={`مقدار مشخصه ${i+1}`} placeholder="مقدار" maxLength={140} value={val} onChange={e=>setValue(v=>({...v,specs:v.specs.map((x,j)=>j===i?([x[0],e.target.value] as [string,string]):x)}))}/><button type="button" className={btn} onClick={()=>setValue(v=>({...v,specs:v.specs.filter((_,j)=>j!==i)}))}><Trash2 size={16}/>حذف</button></div>)}</div></section>
-   <div className="sticky bottom-2 z-10 rounded-2xl border border-[#b48b55] bg-[#211612]/95 p-3 shadow-xl backdrop-blur-sm sm:p-4"><div className="flex flex-wrap items-center justify-between gap-3"><p role="status" className="min-w-0 flex-1 text-sm text-[#efce90]">{message||"بعد از واردکردن اطلاعات، همه تغییرات را یکجا ذخیره کنید."}</p><button type="submit" disabled={busy||loading} className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-[#dfbc7c] px-6 font-black text-[#1b100c] disabled:opacity-50"><Save size={19}/>{busy?"در حال ذخیره…":"ذخیره کامل محصول"}</button></div></div>
+   <div className="sticky bottom-2 z-10 rounded-2xl border border-[#b48b55] bg-[#211612]/95 p-3 shadow-xl backdrop-blur-sm sm:p-4"><div className="flex flex-wrap items-center justify-between gap-3"><p role="status" className="min-w-0 flex-1 text-sm text-[#efce90]">{message||"بعد از واردکردن اطلاعات، همه تغییرات را یکجا ذخیره کنید."}</p><button type="submit" disabled={busy||loading||deleting} className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-[#dfbc7c] px-6 font-black text-[#1b100c] disabled:opacity-50"><Save size={19}/>{busy?"در حال ذخیره…":"ذخیره کامل محصول"}</button></div></div>
   </form>
  </main>
 }
