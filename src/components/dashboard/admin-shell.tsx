@@ -9,9 +9,8 @@ const links = [
   {href:"/admin/content",label:"محتوا و بنرها",icon:FilePenLine},
   {href:"/admin/media",label:"گالری تصاویر",icon:Images},
   {href:"/admin/team",label:"مدیران و دسترسی",icon:Users},
-  {href:"/admin/products",label:"مدیریت محصولات",icon:Boxes},
-  {href:"/admin/product-images",label:"تصاویر محصولات",icon:Images},
-  {href:"/admin/product-specs",label:"مشخصات فنی محصولات",icon:Boxes},
+  {href:"/admin/products",label:"همه محصولات",icon:Boxes},
+  {href:"/admin/products/new",label:"افزودن محصول",icon:Boxes},
   {href:"/admin/inventory",label:"گزارش انبار",icon:Boxes},
   {href:"/admin/reviews",label:"نظرات مشتریان",icon:MessageSquare},
   {href:"/admin/analytics",label:"گزارش‌های تحلیلی",icon:BarChart3},
@@ -32,7 +31,7 @@ export default function AdminShell({children}:{children:ReactNode}){
   if(href==="/admin/notifications")return true;
   if(href==="/admin/drafts")return scope==="manager"||scope==="catalog";
   if(scope==="manager")return true;
-  if(scope==="catalog")return ["/admin/content","/admin/media","/admin/products","/admin/product-images","/admin/product-specs","/admin/reviews"].includes(href);
+  if(scope==="catalog")return ["/admin/content","/admin/media","/admin/products","/admin/products/new","/admin/reviews"].includes(href);
   if(scope==="warehouse")return href==="/admin/inventory";
   if(scope==="orders")return href==="/admin/orders";
   return href==="/admin/support";
@@ -50,6 +49,6 @@ export default function AdminShell({children}:{children:ReactNode}){
      </nav>
      <div className="hidden border-t border-[#493326] px-5 py-5 lg:block"><Link className="inline-flex items-center gap-2 text-sm text-[#bda88a] hover:text-[#ebc581]" href="/"><Store size={16}/> مشاهده فروشگاه</Link></div>
    </aside>
-   <div className="min-w-0 flex-1"><div className="block border-b border-[#493326] px-3 py-3 sm:hidden"><AdminQuickSearch /></div><div className="flex min-h-12 items-center justify-between border-b border-[#4c342a] px-4 py-3 sm:px-6 lg:px-8"><span className="text-xs text-[#c7a87c] sm:text-sm">پنل مدیریت / {links.find(x=>x.href===path)?.label??"مدیریت"}</span><div className="hidden min-w-0 flex-1 justify-end px-3 sm:flex"><AdminQuickSearch /></div></div><div className="min-w-0 overflow-x-clip">{children}</div></div>
+   <div className="min-w-0 flex-1"><div className="block border-b border-[#493326] px-3 py-3 sm:hidden"><AdminQuickSearch /></div><div className="flex min-h-12 items-center justify-between border-b border-[#4c342a] px-4 py-3 sm:px-6 lg:px-8"><span className="text-xs text-[#c7a87c] sm:text-sm">پنل مدیریت / {links.find(x=>x.href===path)?.label??(path.startsWith("/admin/products/")?"ویرایش محصول":"مدیریت")}</span><div className="hidden min-w-0 flex-1 justify-end px-3 sm:flex"><AdminQuickSearch /></div></div><div className="min-w-0 overflow-x-clip">{children}</div></div>
  </div>
 }
