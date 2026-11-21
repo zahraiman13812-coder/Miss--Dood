@@ -43,6 +43,8 @@ export default async function AdminOrderInvoice({params}:{params:Promise<{id:str
     db().query<Event>(`SELECT id,from_status,to_status,note,created_at FROM order_events
       WHERE order_id=$1 ORDER BY created_at,id`,[id]),
   ]);
+  const images = await db().query<{slug:string;image:string|null}>(`SELECT p.slug, COALESCE((SELECT src FROM product_images WHERE product_slug=p.slug ORDER BY sort_order,id LIMIT 1),p.image) AS image FROM products p WHERE p.slug=ANY($1::text[])`,[items.rows.map(i=>i.product_slug)]);
+  const imageBySlug = new Map(images.rows.map(i=>[i.slug,i.image]));
   return <main dir="rtl" className="mx-auto max-w-5xl space-y-5 px-3 py-6 text-[#f2e4cb] sm:px-6 print:max-w-none print:space-y-3 print:bg-white print:p-0 print:text-black">
     <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
       <Link href="/admin/orders" className="text-sm font-bold text-[#e6bb77] hover:underline">بازگشت به سفارش‌ها</Link>
@@ -82,7 +84,7 @@ export default async function AdminOrderInvoice({params}:{params:Promise<{id:str
       <div className="overflow-x-auto print:overflow-visible"><table className="w-full min-w-[640px] border-collapse text-right text-sm print:min-w-0"><thead className="bg-[#36291c] print:bg-gray-100"><tr>
         <th className="p-3">ردیف</th><th className="p-3">نام کالا و شناسه</th><th className="p-3">تعداد</th><th className="p-3">قیمت واحد</th><th className="p-3">جمع ردیف</th>
       </tr></thead><tbody>{items.rows.map((item,i)=><tr key={`${item.product_slug}-${i}`} className="border-b border-[#6b553e] print:border-gray-300"><td className="p-3">{(i+1).toLocaleString("fa-IR")}</td>
-        <td className="p-3"><strong>{item.product_name}</strong><div dir="ltr" className="mt-1 text-xs text-[#c6ad85] print:text-gray-600">{item.product_slug}</div></td>
+        <td className="p-3"><div className="flex items-center gap-3">{imageBySlug.get(item.product_slug)&&<img src={imageBySlug.get(item.product_slug)!} alt={item.product_name} className="size-14 shrink-0 rounded-lg object-cover print:size-12"/>}<div><strong>{item.product_name}</strong><div className="text-[10px] text-[#bda98c] print:text-gray-600">تصویر فعلی محصول</div></div></div><div dir="ltr" className="mt-1 text-xs text-[#c6ad85] print:text-gray-600">{item.product_slug}</div></td>
         <td className="p-3">{item.quantity.toLocaleString("fa-IR")}</td><td className="p-3 whitespace-nowrap">{money(item.unit_price)}</td><td className="p-3 whitespace-nowrap">{money(item.amount)}</td>
       </tr>)}</tbody></table></div>
       <dl className="mr-auto mt-6 max-w-sm space-y-3 text-sm"><div className="flex justify-between gap-4"><dt>جمع کالاها</dt><dd>{money(order.subtotal)}</dd></div>

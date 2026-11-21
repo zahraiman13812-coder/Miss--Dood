@@ -2,7 +2,7 @@ import "server-only";
 import {db} from "@/lib/db";
 import type {CurrentUser} from "@/lib/session";
 export type AdminScope="owner"|"manager"|"catalog"|"warehouse"|"orders"|"support";
-export type AdminArea="team"|"catalog"|"warehouse"|"orders"|"support"|"reports"|"content";
+export type AdminArea="team"|"catalog"|"warehouse"|"orders"|"carts_read"|"carts_review"|"support"|"reports"|"content";
 const scopes:AdminScope[]=["owner","manager","catalog","warehouse","orders","support"];
 export async function getAdminScope(user:CurrentUser|null):Promise<AdminScope|null>{
  if(user?.role!=="admin")return null;
@@ -17,6 +17,8 @@ export async function adminCan(user:CurrentUser|null,area:AdminArea):Promise<boo
  if(scope==="owner")return true;
  if(area==="team")return false;
  if(scope==="manager")return true;
+ if(area==="carts_read")return scope==="orders"||scope==="warehouse";
+ if(area==="carts_review")return scope==="orders";
  if(area==="content")return scope==="catalog";
  if(area==="reports")return false;
  return scope===area;

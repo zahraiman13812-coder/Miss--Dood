@@ -27,7 +27,7 @@ export async function POST(req:NextRequest) {try {
  const data=await req.json();
  if(!data || typeof data!=="object" || Array.isArray(data))return bad("INVALID_BODY");
  const name=typeof data.recipientName==="string"?data.recipientName.trim():"", phone=typeof data.recipientPhone==="string"?data.recipientPhone.trim():"", address=typeof data.shippingAddress==="string"?data.shippingAddress.trim():"", city=typeof data.shippingCity==="string"?data.shippingCity.trim():"";
- const method = data.shippingMethod === "pickup" ? "pickup" : data.shippingMethod === "express" ? "express" : data.shippingMethod === "post" ? "post" : null;
+ const method = typeof data.shippingMethod === "string" && /^[a-z][a-z0-9_]{1,31}$/.test(data.shippingMethod) ? data.shippingMethod : null;
  if (!method) return bad("INVALID_SHIPPING_METHOD");
  const postalCode = typeof data.postalCode === "string" ? data.postalCode.replace(/[۰-۹٠-٩]/g,(c:string)=>String(c.charCodeAt(0)-(c.charCodeAt(0)>1700?1776:1632))).replace(/\s/g,"") : "";
  const lat = data.latitude===null || data.latitude===undefined ? null : data.latitude;
@@ -35,8 +35,8 @@ export async function POST(req:NextRequest) {try {
  const hasCoords = typeof lat === "number" && typeof lng === "number" && Number.isFinite(lat) && Number.isFinite(lng) && lat>=-90 && lat<=90 && lng>=-180 && lng<=180;
  if ((lat!==null || lng!==null) && !hasCoords) return bad("INVALID_LOCATION");
  if (method !== "pickup" && !/^\d{10}$/.test(postalCode)) return bad("INVALID_POSTAL_CODE");
- if (method === "express" && !hasCoords) return bad("LOCATION_REQUIRED");
- if (method !== "post" && city.replace(/\s/g,"") !== "تهران") return bad("TEHRAN_ONLY");
+ if (method !== "pickup" && !hasCoords) return bad("LOCATION_REQUIRED");
+
  const province = typeof data.shippingProvince === "string" ? data.shippingProvince.trim() : "";
  const building = typeof data.building === "string" ? data.building.trim() : "";
  const unit = typeof data.unit === "string" ? data.unit.trim() : "";
@@ -57,15 +57,20 @@ export async function POST(req:NextRequest) {try {
   await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))", [user.id + ":" + key]);
   const previous=await client.query<{id:string}>("SELECT id FROM orders WHERE user_id=$1 AND idempotency_key=$2",[user.id,key]);
   if(previous.rows[0])return previous.rows[0].id;
+  const directRate=await client.query<{fee:string}>("SELECT fee::text FROM delivery_rate_options WHERE province=$1 AND city=$2 AND method_key=$3 AND active=true",[province,city,method]);
+  const customOptions=await client.query<{exists:boolean}>("SELECT EXISTS(SELECT 1 FROM delivery_rate_options WHERE province=$1 AND city=$2 AND active=true) AS exists",[province,city]);
+  if(customOptions.rows[0]?.exists && !directRate.rows[0])throw new OrderError("INVALID_SHIPPING_METHOD");
+  if(!customOptions.rows[0]?.exists && !["post","express","pickup"].includes(method))throw new OrderError("INVALID_SHIPPING_METHOD");
+  if(!customOptions.rows[0]?.exists && method!=="post" && city.replace(/\s/g,"")!=="تهران")throw new OrderError("TEHRAN_ONLY");
   const shipping=await client.query<{fee:string}>("SELECT fee::text FROM shipping_rules WHERE city=$1 AND active=true",[city]);
   let nationalFee:number|null=null;
-  if(!shipping.rows[0] && method==="post"){
+  if(!directRate.rows[0] && !shipping.rows[0] && method==="post"){
     const fallback=await client.query<{fee:string}>("SELECT fee::text AS fee FROM national_shipping_policy WHERE id=1 AND active=true");
     nationalFee=fallback.rows[0]?Number(fallback.rows[0].fee):null;
   }
-  if(!shipping.rows[0] && nationalFee===null && method!=="pickup")throw new OrderError("INVALID_SHIPPING_CITY");
-  let fee = method === "pickup" ? 0 : Number(shipping.rows[0]?.fee??nationalFee);
-  if (method === "express") {
+  if(!directRate.rows[0] && !shipping.rows[0] && nationalFee===null && method!=="pickup")throw new OrderError("INVALID_SHIPPING_CITY");
+  let fee = directRate.rows[0] ? Number(directRate.rows[0].fee) : method === "pickup" ? 0 : Number(shipping.rows[0]?.fee??nationalFee);
+  if (method === "express" && !directRate.rows[0]) {
     const express=await client.query<{fee:string}>("SELECT fee::text FROM delivery_config WHERE method='express' AND active=true");
     if(!express.rows[0])throw new OrderError("EXPRESS_UNAVAILABLE");
     fee=Number(express.rows[0].fee);

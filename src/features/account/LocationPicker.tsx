@@ -28,14 +28,16 @@ const geo = (x: number, y: number, zoom: number): Coordinates => {
 };
 
 /** Lightweight OpenStreetMap click-to-select map. No browser location permission required. */
-export default function LocationPicker({ value, onChange, label = "انتخاب موقعیت روی نقشه", city }: {
+export default function LocationPicker({ value, onChange, label = "انتخاب موقعیت روی نقشه", city, province = "", street = "", address = "" }: {
   value: Coordinates | null;
   onChange: (next: Coordinates) => void;
-  label?: string; city?: string;
+  label?: string; city?: string; province?: string; street?: string; address?: string;
 }) {
   const [center, setCenter] = useState<Coordinates>(value ?? TEHRAN);
   const [zoom, setZoom] = useState(13);
   const [width, setWidth] = useState(600);
+  const [searchBusy,setSearchBusy]=useState(false);
+  const [searchMessage,setSearchMessage]=useState("");
   const canvas = useRef<HTMLDivElement>(null);
   const height = 290;
   useEffect(() => {
@@ -61,6 +63,11 @@ export default function LocationPicker({ value, onChange, label = "انتخاب 
     }
     return result;
   }, [center, zoom, width]);
+  async function searchAddress(){
+    if(!city||!province){setSearchMessage("ابتدا استان و شهر را انتخاب کنید.");return;}
+    setSearchBusy(true);setSearchMessage("");
+    try{const q=new URLSearchParams({city,province,street,address});const r=await fetch(`/api/geo/search?${q}`,{cache:"no-store"});const d=await r.json();if(!r.ok||typeof d.lat!=="number"||typeof d.lng!=="number")throw Error("نشانی پیدا نشد؛ نقطه را دستی روی نقشه انتخاب کنید.");setCenter({lat:d.lat,lng:d.lng});setZoom(16);setSearchMessage("مکان تقریبی پیدا شد. برای تأیید نهایی حتماً روی محل صحیح در نقشه کلیک کنید.")}catch(e){setSearchMessage(e instanceof Error?e.message:"جستجو انجام نشد")}finally{setSearchBusy(false)}
+  }
   function locateMe(){
     if(!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(pos=>{
@@ -81,6 +88,8 @@ export default function LocationPicker({ value, onChange, label = "انتخاب 
   const pinY = marker ? height / 2 + marker.y - centerPx.y : height / 2;
   return <div className="space-y-2">
     <p className="flex items-center gap-2 text-sm font-bold text-[#eed3a2]"><MapPin size={17}/>{label}</p>
+    <button type="button" disabled={searchBusy || !city || !province} onClick={()=>void searchAddress()} className="min-h-11 rounded-xl border border-[#b49564] px-4 text-sm text-[#e9c484] disabled:opacity-50">{searchBusy?"در حال جستجو...":"یافتن موقعیت تقریبی استان، شهر و خیابان"}</button>
+    {searchMessage&&<p role="status" className="text-xs text-[#e5c68f]">{searchMessage}</p>}
     <div ref={canvas} className="relative isolate h-[290px] w-full select-none overflow-hidden rounded-2xl border border-[#8c6e3d] bg-[#26241d]" dir="ltr">
       <div className="absolute inset-0 cursor-crosshair" onClick={choose} role="button" tabIndex={0} aria-label="نقشه؛ برای انتخاب مکان روی نقشه کلیک کنید"
         onKeyDown={e => { if(e.key === "Enter" || e.key === " ") {e.preventDefault(); onChange(center);}}}>
@@ -96,7 +105,7 @@ export default function LocationPicker({ value, onChange, label = "انتخاب 
       </div>
       <div className="absolute bottom-0 right-0 z-20 bg-white/90 px-2 py-1 text-[10px] text-black"><a target="_blank" rel="noopener noreferrer" href="https://www.openstreetmap.org/copyright" className="underline">© OpenStreetMap contributors</a></div>
     </div>
-    <p className="text-xs leading-6 text-[#c9b78d]">روی نقطه دقیق ساختمان بزنید. نشانی متنی و کد پستی را هم جداگانه وارد کنید. برای جابه‌جایی محدوده نقشه، بزرگ‌نمایی را تغییر دهید یا روی نقطه دیگری بزنید.</p>
+    <p className="text-xs leading-6 text-[#c9b78d]">نتیجه جستجو تقریبی است؛ برای تأیید محل حتماً روی نقطه دقیق ساختمان بزنید. نشانی متنی و کد پستی را هم جداگانه وارد کنید. برای جابه‌جایی محدوده نقشه، بزرگ‌نمایی را تغییر دهید یا روی نقطه دیگری بزنید.</p>
     {value && <p className="rounded-xl border border-[#5c482c] bg-[#110e0a] p-3 text-xs text-[#edcf8e]" dir="ltr">{value.lat.toFixed(6)}, {value.lng.toFixed(6)}</p>}
   </div>;
 }

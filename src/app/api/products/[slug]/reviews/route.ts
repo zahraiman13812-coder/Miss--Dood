@@ -13,8 +13,14 @@ export async function POST(req:NextRequest,{params}:{params:Promise<{slug:string
  const input=await req.json();if(!input||typeof input!=="object"||!Number.isInteger(input.rating)||input.rating<1||input.rating>5||typeof input.body!=="string"||input.body.trim().length<10||input.body.trim().length>1500)return bad("INVALID_REVIEW");
  // Non-purchasers may submit moderated reviews; verified label is earned only after delivery.
 
- const prior=await db().query("SELECT id FROM product_reviews WHERE product_slug=$1 AND user_id=$2",[slug,actor.id]);if(prior.rowCount)return bad("REVIEW_EXISTS",409);
- await db().query("INSERT INTO product_reviews(product_slug,user_id,rating,body) VALUES($1,$2,$3,$4)",[slug,actor.id,input.rating,input.body.trim()]);
+ // A rejected review can be revised and resubmitted for moderation; pending and approved cannot.
+ const saved=await db().query(`INSERT INTO product_reviews(product_slug,user_id,rating,body,state)
+   VALUES($1,$2,$3,$4,'pending')
+   ON CONFLICT(product_slug,user_id) DO UPDATE
+   SET rating=EXCLUDED.rating,body=EXCLUDED.body,state='pending',created_at=now(),reviewed_at=NULL
+   WHERE product_reviews.state='rejected'
+   RETURNING id`,[slug,actor.id,input.rating,input.body.trim()]);
+ if(!saved.rowCount)return bad("REVIEW_EXISTS",409);
  return NextResponse.json({ok:true,status:"pending"},{status:201,headers:noStore});
  }catch(e){if(e instanceof SyntaxError)return bad("INVALID_JSON");if((e as {code?:string}).code==="23505")return bad("REVIEW_EXISTS",409);return errorResponse(e)}
 }
