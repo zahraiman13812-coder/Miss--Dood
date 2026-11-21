@@ -21,6 +21,7 @@ try {
     ["customer address book", "db/004_account_features.sql", "to_regclass('public.user_addresses') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='users' AND column_name='phone')"],
     ["delivery map", "db/005_delivery_map.sql", "to_regclass('public.delivery_config') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='orders' AND column_name='shipping_method')"],
     ["admin CMS and media", "db/007_admin_cms.sql then db/008_admin_media.sql", "to_regclass('public.site_settings') IS NOT NULL AND to_regclass('public.admin_audit_log') IS NOT NULL AND to_regclass('public.admin_media') IS NOT NULL"],
+    ["operations and monitoring", "db/010_operations.sql", "to_regclass('public.app_error_events') IS NOT NULL AND to_regclass('public.admin_notifications') IS NOT NULL AND to_regclass('public.web_vitals') IS NOT NULL"],
     ["professional store", "db/009_professional_store.sql", "to_regclass('public.product_images') IS NOT NULL AND to_regclass('public.product_reviews') IS NOT NULL AND to_regclass('public.inventory_movements') IS NOT NULL AND to_regclass('public.order_events') IS NOT NULL AND to_regclass('public.admin_permissions') IS NOT NULL"],
   ];
   let missing = false;
@@ -30,7 +31,7 @@ try {
     else { console.error(`MISSING: ${name} — run ${migration} after backup`); missing = true; }
   }
   if (missing) process.exitCode = 2;
-  else console.log("Database schema OK (migrations 001–009).");
+  else console.log("Database schema OK (migrations 001–010).");
 } catch (error) {
   console.error("PostgreSQL connection/schema check failed:", error instanceof Error ? error.message : "unknown error");
   process.exitCode = 1;

@@ -1,8 +1,9 @@
 "use client";
 import { useEffect, useState, type ReactNode } from "react";
+import AdminQuickSearch from "@/components/ops/admin-quick-search";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FilePenLine, Images, Users, Store, ShieldCheck, Menu, X, Boxes, ClipboardList, BarChart3, MessageSquare } from "lucide-react";
+import { LayoutDashboard, FilePenLine, Images, Users, Store, ShieldCheck, Menu, X, Boxes, ClipboardList, BarChart3, MessageSquare, Bell, Activity } from "lucide-react";
 const links = [
   {href:"/admin",label:"داشبورد و عملیات",icon:LayoutDashboard},
   {href:"/admin/content",label:"محتوا و بنرها",icon:FilePenLine},
@@ -16,6 +17,9 @@ const links = [
   {href:"/admin/analytics",label:"گزارش‌های تحلیلی",icon:BarChart3},
   {href:"/admin/orders",label:"مدیریت سفارش‌ها",icon:ClipboardList},
   {href:"/admin/support",label:"پشتیبانی",icon:MessageSquare},
+  {href:"/admin/notifications",label:"اعلان‌ها",icon:Bell},
+  {href:"/admin/operations",label:"سلامت و سرعت",icon:Activity},
+  {href:"/admin/drafts",label:"پیش‌نویس محتوا",icon:FilePenLine},
 ];
 export default function AdminShell({children}:{children:ReactNode}){
  const path=usePathname();
@@ -24,7 +28,9 @@ export default function AdminShell({children}:{children:ReactNode}){
  useEffect(()=>{fetch("/api/admin/access",{cache:"no-store"}).then(r=>r.json()).then(d=>{if(d.scope)setScope(d.scope)}).catch(()=>{})},[]);
  const canSee=(href:string)=>{
   if(scope==="owner")return true;
-  if(href==="/admin/team")return false;
+  if(href==="/admin/team"||href==="/admin/operations")return false;
+  if(href==="/admin/notifications")return true;
+  if(href==="/admin/drafts")return scope==="manager"||scope==="catalog";
   if(scope==="manager")return true;
   if(scope==="catalog")return ["/admin/content","/admin/media","/admin/products","/admin/product-images","/admin/product-specs","/admin/reviews"].includes(href);
   if(scope==="warehouse")return href==="/admin/inventory";
@@ -44,6 +50,6 @@ export default function AdminShell({children}:{children:ReactNode}){
      </nav>
      <div className="hidden border-t border-[#493326] px-5 py-5 lg:block"><Link className="inline-flex items-center gap-2 text-sm text-[#bda88a] hover:text-[#ebc581]" href="/"><Store size={16}/> مشاهده فروشگاه</Link></div>
    </aside>
-   <div className="min-w-0 flex-1"><div className="flex min-h-12 items-center justify-between border-b border-[#4c342a] px-4 py-3 sm:px-6 lg:px-8"><span className="text-xs text-[#c7a87c] sm:text-sm">پنل مدیریت / {links.find(x=>x.href===path)?.label??"مدیریت"}</span><span className="hidden text-xs text-[#967b5d] sm:inline">نسخه مدیریتی</span></div><div className="min-w-0 overflow-x-clip">{children}</div></div>
+   <div className="min-w-0 flex-1"><div className="block border-b border-[#493326] px-3 py-3 sm:hidden"><AdminQuickSearch /></div><div className="flex min-h-12 items-center justify-between border-b border-[#4c342a] px-4 py-3 sm:px-6 lg:px-8"><span className="text-xs text-[#c7a87c] sm:text-sm">پنل مدیریت / {links.find(x=>x.href===path)?.label??"مدیریت"}</span><div className="hidden min-w-0 flex-1 justify-end px-3 sm:flex"><AdminQuickSearch /></div></div><div className="min-w-0 overflow-x-clip">{children}</div></div>
  </div>
 }

@@ -18,3 +18,7 @@ npm-debug.log*
 node_modules/
 .next/
 .git-backup-*/
+
+# Database backups are private and must never be committed
+private-backups/
+*.dump

@@ -12,9 +12,14 @@
     "test:static": "node scripts/static-check.mjs",
     "test:smoke": "node scripts/smoke-check.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "npm run test:static && npm run test:smoke && npm run test:security && npm run typecheck",
+    "test": "npm run test:static && npm run test:smoke && npm run test:security && npm run test:operations && npm run typecheck",
     "test:security": "node scripts/security-check.mjs",
-    "config:check": "node --env-file=.env.local scripts/config-check.mjs"
+    "config:check": "node --env-file=.env.local scripts/config-check.mjs",
+    "db:backup": "node --env-file=.env.local scripts/backup-db.mjs",
+    "db:restore:test": "node --env-file=.env.local scripts/test-restore.mjs",
+    "test:routes": "node scripts/route-smoke.mjs",
+    "test:operations": "node scripts/operations-check.mjs",
+    "db:ops:cleanup": "node --env-file=.env.local scripts/cleanup-operations.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
