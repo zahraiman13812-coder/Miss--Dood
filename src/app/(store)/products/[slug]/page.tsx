@@ -2,9 +2,35 @@ import type {Metadata} from "next";
 import {db} from "@/lib/db";
 import { absoluteSiteUrl, seoDescription } from "@/lib/seo";
 import ProductDetail from "@/features/catalog/ProductDetail";
+import { SITE_NAME } from "@/lib/seo";
 export default async function ProductPage({params}:{params:Promise<{slug:string}>}) {
   const { slug } = await params;
-  return <ProductDetail slug={slug}/>;
+  // Breadcrumb markup reflects actual public page hierarchy (no invented reviews/ratings).
+  if (!/^[a-z0-9][a-z0-9-]{0,119}$/.test(slug)) return <ProductDetail slug={slug} />;
+  let breadcrumb: Record<string, unknown> | null = null;
+  try {
+    const result = await db().query<{ name: string }>(
+      "SELECT name FROM products WHERE slug=$1 AND active=true AND deleted_at IS NULL", [slug],
+    );
+    const product = result.rows[0];
+    if (product) breadcrumb = {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: SITE_NAME, item: absoluteSiteUrl("/") },
+        { "@type": "ListItem", position: 2, name: "فروشگاه", item: absoluteSiteUrl("/shop") },
+        { "@type": "ListItem", position: 3, name: product.name, item: absoluteSiteUrl(`/products/${slug}`) },
+      ],
+    };
+  } catch {
+    // A transient database failure must not fabricate product data.
+  }
+  return <>
+    {breadcrumb && <script type="application/ld+json" dangerouslySetInnerHTML={{
+      __html: JSON.stringify(breadcrumb).replace(/</g, "\\u003c"),
+    }} />}
+    <ProductDetail slug={slug} />
+  </>;
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {

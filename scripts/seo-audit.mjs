@@ -26,6 +26,18 @@ for (const f of ["opengraph-image.png", "twitter-image.png", "apple-icon.png", "
 check(layout.includes('lang="fa"') && layout.includes('dir="rtl"'), "HTML language/direction required");
 check(layout.includes("metadataBase"), "metadataBase required");
 check(product.includes("generateMetadata"), "Product pages need dynamic metadata");
+
+// Regression checks for frequently missed SEO/compiler issues.
+const decorPage = read("src/app/(store)/decor/page.tsx");
+const decorClient = read("src/features/decor/DecorCatalog.tsx");
+const shopPage = read("src/app/(store)/shop/page.tsx");
+check(!decorPage.includes('"use client"'), "Decor metadata must stay in a server component");
+check(decorClient.startsWith('"use client"'), "Decor interactive catalog must be a client component");
+check(decorPage.includes("export const metadata"), "Decor page must provide metadata");
+check(decorClient.includes('alt={p.name}'), "Decor images need descriptive alternative text");
+check(shopPage.includes("generateMetadata") && shopPage.includes("index: false"), "Search/filter result variants must be noindex");
+check(product.includes('BreadcrumbList'), "Product pages need BreadcrumbList JSON-LD");
+
 if (errors.length) {
   for (const e of errors) console.error(`FAIL: ${e}`);
   process.exitCode = 1;
