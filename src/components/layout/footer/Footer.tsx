@@ -7,12 +7,12 @@ import {getCms} from "@/lib/site-cms";
 const linkStyle = "block w-fit py-2 text-sm text-muted hover:text-accent";
 
 export default async function Footer() {
-  const {contact:storeContact}=await getCms();
+  const {contact:storeContact,branding}=await getCms();
   return (
     <footer className="mt-auto border-t border-accent/45 bg-header text-content">
       <div className="mx-auto grid max-w-7xl grid-cols-2 gap-x-4 gap-y-6 px-5 py-8 sm:px-8 lg:grid-cols-[1fr_1fr_1.5fr] lg:py-12">
         <Link href="/" aria-label="میس دود، صفحه اصلی" className="col-span-2 mx-auto w-fit self-start rounded-md lg:col-span-1 lg:mx-0">
-          <Image src="/brand/miss-dood-logo.png" width={136} height={136} alt="MISS DOOD" className="size-24 object-contain lg:size-32" />
+          <Image src={branding?.logo||"/brand/miss-dood-logo.png"} unoptimized width={136} height={136} alt="MISS DOOD" className="size-24 object-contain lg:size-32" />
         </Link>
         <nav aria-label="دسترسی سریع در فوتر">
           <h2 className="mb-2 font-bold text-accent">دسترسی سریع</h2>

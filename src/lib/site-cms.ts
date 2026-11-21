@@ -5,11 +5,13 @@ import { storeContact } from "@/data/storeContact";
 
 export type Banner = { src: string; alt: string; href: string; active: boolean };
 export type SiteCms = {
-  contact: { address: string; phones: string[]; description: string };
+  contact: { address: string; phones: string[]; description: string; mapLinks?: {google:string;balad:string;neshan:string} };
   about: { heading: string; paragraphs: string[] };
   guide: { intro: string; questions: { question: string; answer: string }[] };
   banners: Banner[];
-  catalog: { categories: { slug: string; label: string; brands: { slug: string; label: string }[] }[] };
+  branding: { logo: string };
+  decor: { items: {id:string;name:string;image:string}[] };
+  catalog: { categories: { slug: string; label: string; image?: string; brands: { slug: string; label: string; image?: string }[] }[] };
 };
 export const defaultCms: SiteCms = {
   contact: { ...storeContact, description: "برای تماس تلفنی یا مسیریابی تا فروشگاه از راه‌های زیر استفاده کنید." },
@@ -20,11 +22,13 @@ export const defaultCms: SiteCms = {
     {question:"چگونه سفارش را پیگیری کنم؟",answer:"از صفحه پیگیری سفارش یا حساب کاربری استفاده کنید."},
     {question:"آیا پرداخت آنلاین فعال است؟",answer:"درگاه پرداخت آنلاین فعلاً فعال نیست؛ برای هماهنگی پرداخت با فروشگاه تماس بگیرید."},
   ] },
+  branding: {logo:"/brand/miss-dood-logo.png"},
+  decor: {items:[{id:"classic-lighter",name:"فندک کلاسیک",image:"/images/categories/lighters.webp"},{id:"gold-hookah",name:"قلیون طلایی",image:"/images/categories/hookah.webp"},{id:"gold-collection",name:"مجموعه میس دود",image:"/images/hero/miss-dood-3.webp"}]},
   banners: [1,2,3].map(n=>({src:`/images/hero/miss-dood-${n}.webp`,alt:`بنر ${n} میس دود`,href:"/shop",active:true})),
   catalog: {categories: categories.map(([slug,label])=>({slug,label,brands: ((categoryBrands as Record<string, readonly (readonly [string,string])[]>)[slug]??[]).map(([bs,bl])=>({slug:bs,label:bl}))}))},
 };
 export type CmsKey = keyof SiteCms;
-export const cmsKeys: CmsKey[] = ["contact","about","guide","banners","catalog"];
+export const cmsKeys: CmsKey[] = ["contact","about","guide","banners","catalog","branding","decor"];
 export async function getCms():Promise<SiteCms> {
   try {
     const result = await db().query<{key:string;value:unknown}>("SELECT key,value FROM site_settings WHERE key = ANY($1::text[])",[cmsKeys]);

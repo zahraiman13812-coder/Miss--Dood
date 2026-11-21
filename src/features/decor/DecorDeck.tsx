@@ -5,11 +5,12 @@ import type { CSSProperties } from "react";
 import styles from "./DecorDeck.module.css";
 import { useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { decorItems } from "@/data/decor";
+import { decorItems as defaultDecorItems } from "@/data/decor";
 import DecorPhoto from "./DecorPhoto";
 
 const button = "grid size-11 place-items-center rounded-full border border-line text-accent hover:border-accent";
-export default function DecorDeck() {
+export default function DecorDeck({items}:{items?:{id:string;name:string;image:string}[]}) {
+  const decorItems=items??defaultDecorItems;
   const [active, setActive] = useState(0);
   const [outgoing, setOutgoing] = useState<{ index: number; step: number } | null>(null);
   const start = useRef<{ x: number; y: number } | null>(null);
