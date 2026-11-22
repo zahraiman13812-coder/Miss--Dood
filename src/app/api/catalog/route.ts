@@ -10,7 +10,7 @@ export async function GET() {try {
    COALESCE((SELECT json_agg(i.src ORDER BY i.sort_order,i.id) FROM product_images i WHERE i.product_slug=products.slug),'[]'::json) AS images,
    (SELECT round(avg(r.rating)::numeric,1)::float8 FROM product_reviews r WHERE r.product_slug=products.slug AND r.state='approved') AS rating,
    (SELECT count(*)::int FROM product_reviews r WHERE r.product_slug=products.slug AND r.state='approved') AS "reviewCount"
-   FROM products WHERE active=true ORDER BY name`),
+   FROM products WHERE active=true AND deleted_at IS NULL ORDER BY name`),
   db().query<ShippingRow>("SELECT city,fee::float8 AS fee,days FROM shipping_rules WHERE active=true ORDER BY city"),
   db().query<{fee:number;days:string;active:boolean}>("SELECT fee::float8 AS fee,days,active FROM national_shipping_policy WHERE id=1")
  ]);

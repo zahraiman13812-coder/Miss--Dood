@@ -7,7 +7,7 @@ export async function GET(){try{const user=await currentUser();if(user?.role!=="
  const [events,open,stock]=await Promise.all([
  db().query(`SELECT n.id,n.kind,n.title,n.detail,n.href,n.created_at,(r.user_id IS NOT NULL) AS read FROM admin_notifications n LEFT JOIN admin_notification_reads r ON r.notification_id=n.id AND r.user_id=$1 ORDER BY n.created_at DESC LIMIT 40`,[user.id]),
  db().query("SELECT count(*)::int AS count FROM orders WHERE status IN ('received','processing')"),
- db().query("SELECT count(*)::int AS count FROM products WHERE active=true AND stock<=5")
+ db().query("SELECT count(*)::int AS count FROM products WHERE active=true AND deleted_at IS NULL AND stock<=5")
  ]);
  return NextResponse.json({items:events.rows,summary:{openOrders:open.rows[0].count,lowStock:stock.rows[0].count}},{headers:noStore});
  }catch(e){return errorResponse(e)}}

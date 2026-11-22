@@ -24,6 +24,10 @@ if (process.env.GMAIL_USER && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(process.env.GMA
   console.error("GMAIL_USER must be an email address");
   errors++;
 }
+if (process.env.GAMIL_APP_PASSWORD && !process.env.GMAIL_APP_PASSWORD) {
+  console.error("Typo: GAMIL_APP_PASSWORD is not recognized. Use GMAIL_APP_PASSWORD.");
+  errors++;
+}
 const appPassword = process.env.GMAIL_APP_PASSWORD?.replace(/\s/g, "");
 if (appPassword && appPassword.length !== 16) {
   console.warn("GMAIL_APP_PASSWORD is not 16 characters long after spaces are removed; check the App Password value.");

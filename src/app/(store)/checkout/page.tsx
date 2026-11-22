@@ -79,12 +79,17 @@ export default function CheckoutPage() {
   useEffect(()=>{if(previousSignature.current!==signature){previousSignature.current=signature;requestId.current=null;}},[signature]);
   function applySavedAddress(id:string){
     const found=savedAddresses.find(a=>a.id===id); if(!found)return;
-    setRecipient({name:found.recipient_name,phone:found.phone,province:found.province||"",building:found.building||"",unit:found.unit||"",address:found.address,street:"",postalCode:found.postal_code||""});
+    setRecipient({name:found.recipient_name,phone:found.phone,province:found.province||"",building:found.building||"",unit:found.unit||"",address:found.address,street:found.address,postalCode:found.postal_code||""});
     setCoords(found.latitude!=null&&found.longitude!=null?{lat:found.latitude,lng:found.longitude}:null);
     if(found.preferred_shipping_method && (found.preferred_shipping_method==="post" || found.city==="تهران"))setMethod(found.preferred_shipping_method);
     updateStore(old=>({...old,city:found.city}));
   }
   const validPhone = /^\+?[0-9۰-۹٠-٩ \-]{8,22}$/.test(recipient.phone.trim());
+  // Saved addresses contain one combined address; don't require customers to
+  // retype the street or serialize it twice into a new order.
+  const shippingAddressText = recipient.street.trim() === recipient.address.trim()
+    ? recipient.address.trim()
+    : `${recipient.street.trim()}، ${recipient.address.trim()}`;
   const postalCode = recipient.postalCode.replace(/[۰-۹]/g,c=>String(c.charCodeAt(0)-1776)).replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-1632));
   function validate() {
     if(recipient.name.trim().length < 2 || !validPhone) return "نام کامل و شماره تماس معتبر وارد کنید.";
@@ -100,7 +105,7 @@ export default function CheckoutPage() {
     lock.current=true;setBusy(true);setError("");
     try {
       requestId.current ??= crypto.randomUUID();
-      const response=await fetch("/api/orders",{method:"POST",headers:{"Content-Type":"application/json","Idempotency-Key":requestId.current},body:JSON.stringify({recipientName:recipient.name,recipientPhone:recipient.phone,shippingAddress:method==="pickup"?"":`${recipient.street}، ${recipient.address}`,shippingCity:selectedCity,shippingProvince:method==="pickup"?"تهران":recipient.province,building:method==="pickup"?"":recipient.building,unit:method==="pickup"?"":recipient.unit,postalCode:method==="pickup"?"":postalCode,latitude:coords?.lat??null,longitude:coords?.lng??null,shippingMethod:method,items:lines.map(l=>({slug:l.product.slug,quantity:l.quantity}))})});
+      const response=await fetch("/api/orders",{method:"POST",headers:{"Content-Type":"application/json","Idempotency-Key":requestId.current},body:JSON.stringify({recipientName:recipient.name,recipientPhone:recipient.phone,shippingAddress:method==="pickup"?"":shippingAddressText,shippingCity:selectedCity,shippingProvince:method==="pickup"?"تهران":recipient.province,building:method==="pickup"?"":recipient.building,unit:method==="pickup"?"":recipient.unit,postalCode:method==="pickup"?"":postalCode,latitude:coords?.lat??null,longitude:coords?.lng??null,shippingMethod:method,items:lines.map(l=>({slug:l.product.slug,quantity:l.quantity}))})});
       const data=await response.json();
       if(!response.ok){const messages:Record<string,string>={AUTH_REQUIRED:"برای سفارش وارد حساب شوید.",EXPRESS_UNAVAILABLE:"ارسال اکسپرس فعلاً فعال نیست.",INVALID_SHIPPING_CITY:"برای شهر انتخاب‌شده تعرفه وجود ندارد.",INVALID_POSTAL_CODE:"کد پستی معتبر نیست.",LOCATION_REQUIRED:"موقعیت روی نقشه را انتخاب کنید.",INSUFFICIENT_STOCK:"موجودی کالا کافی نیست.",PRODUCT_UNAVAILABLE:"یک محصول دیگر موجود نیست."};throw Error(messages[data.error]||"ثبت سفارش ناموفق بود.");}
       setReceipt(data.orderId);
@@ -111,13 +116,13 @@ export default function CheckoutPage() {
   async function previewOrder(){
     const problem=validate();if(problem){setError(problem);return;}
     setBusy(true);setError("");setDemoResult("");
-    try{const response=await fetch("/api/orders/preview",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({recipientName:recipient.name,recipientPhone:recipient.phone,shippingAddress:method==="pickup"?"":`${recipient.street}، ${recipient.address}`,shippingProvince:recipient.province,building:recipient.building,postalCode,latitude:coords?.lat??null,longitude:coords?.lng??null,shippingCity:selectedCity,shippingMethod:method,items:lines.map(l=>({slug:l.product.slug,quantity:l.quantity}))})});const result=await response.json();if(!response.ok)throw Error(result.error??"امکان تست این سفارش نیست");setDemoResult(`تست موفق: مجموع ${Number(result.total).toLocaleString("fa-IR")} تومان. هیچ سفارشی ثبت نشد، پولی دریافت نشد و موجودی تغییر نکرد.`)}catch(e){setError(e instanceof Error?e.message:"تست ناموفق بود")}finally{setBusy(false)}
+    try{const response=await fetch("/api/orders/preview",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({recipientName:recipient.name,recipientPhone:recipient.phone,shippingAddress:method==="pickup"?"":shippingAddressText,shippingProvince:method==="pickup"?"تهران":recipient.province,building:method==="pickup"?"":recipient.building,postalCode:method==="pickup"?"":postalCode,latitude:coords?.lat??null,longitude:coords?.lng??null,shippingCity:selectedCity,shippingMethod:method,items:lines.map(l=>({slug:l.product.slug,quantity:l.quantity}))})});const result=await response.json();if(!response.ok)throw Error(result.error??"امکان تست این سفارش نیست");setDemoResult(`تست موفق: مجموع ${Number(result.total).toLocaleString("fa-IR")} تومان. هیچ سفارشی ثبت نشد، پولی دریافت نشد و موجودی تغییر نکرد.`)}catch(e){setError(e instanceof Error?e.message:"تست ناموفق بود")}finally{setBusy(false)}
   }
   if(receipt)return <main className="mx-auto w-full max-w-2xl space-y-4 p-6"><PurchaseSteps current={3}/><div className={panel}><PackageCheck size={38} className="text-[#ecc87d]"/><h1 className="mt-3 text-2xl font-black text-[#f0d08d]">سفارش ثبت شد</h1><p className="mt-3 break-all">شناسه سفارش: <bdi>{receipt}</bdi></p><p className="mt-3 text-sm text-[#cdbb96]">پرداخت آنلاین فعال نیست؛ ثبت سفارش رسید پرداخت محسوب نمی‌شود.</p><Link className="mt-4 inline-block text-[#e8c477]" href="/orders">پیگیری سفارش</Link></div></main>;
   return <main className="mx-auto w-full max-w-3xl space-y-5 px-4 py-8 text-[#f5ead4]"><PurchaseSteps current={review?2:1}/><h1 className="text-2xl font-black">{review?"مرور نهایی سفارش":"مشخصات گیرنده و روش تحویل"}</h1>
     {catalogStatus !== "ready"?<div className={panel}>در حال بارگذاری اطلاعات کالا یا خطا در اتصال به کاتالوگ…</div>:
     !count||stockIssue||total===null?<div className={panel}>سبد خرید را بررسی کنید. <Link href="/cart" className="text-[#e7c47c]">بازگشت</Link></div>:
-    review?<section className={`${panel} space-y-4`}><h2 className="text-xl font-bold">خلاصه سفارش</h2><p>{recipient.name} — <bdi dir="ltr">{recipient.phone}</bdi></p><p>{recipient.province||"تهران"}، {selectedCity}، {method==="pickup"?pickupAddress:`${recipient.street}، ${recipient.address}`} {recipient.building&&`، پلاک ${recipient.building}`} {recipient.unit&&`، واحد ${recipient.unit}`}</p>{method!=="pickup"&&<p>کد پستی: {postalCode}</p>}
+    review?<section className={`${panel} space-y-4`}><h2 className="text-xl font-bold">خلاصه سفارش</h2><p>{recipient.name} — <bdi dir="ltr">{recipient.phone}</bdi></p><p>{recipient.province||"تهران"}، {selectedCity}، {method==="pickup"?pickupAddress:shippingAddressText} {recipient.building&&`، پلاک ${recipient.building}`} {recipient.unit&&`، واحد ${recipient.unit}`}</p>{method!=="pickup"&&<p>کد پستی: {postalCode}</p>}
       <p className="text-[#e8c477]">روش تحویل: {methodItems.find(m=>m.id===method)?.label}</p>
       {lines.map(l=><div key={l.product.slug} className="flex justify-between gap-4 border-b border-[#56462d] pb-2 text-sm"><span>{l.product.name} × {l.quantity}</span><span>{productPrice(l.amount)}</span></div>)}
       <p>جمع کالاها: {productPrice(total)}</p><p>هزینه ارسال: {productPrice(shippingFee??0)}</p><p className="text-lg font-bold text-[#e8c477]">مبلغ کل: {productPrice(total+(shippingFee??0))}</p>
