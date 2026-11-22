@@ -1,18 +1,26 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import { MapPin, Phone, Navigation, ExternalLink } from "lucide-react";
 import { dialLink } from "@/data/storeContact";
 import { getCms } from "@/lib/site-cms";
 export const dynamic="force-dynamic";
-function mapLinks(address: string, custom?: {google:string;balad:string;neshan:string}) {
+function mapLinks(address: string) {
  const query=encodeURIComponent(address);
  return [
-  {name:"Google Maps",href:custom?.google||`https://www.google.com/maps/search/?api=1&query=${query}`,logo:"/images/map-services/google-maps.png"},
-  {name:"بلد",href:custom?.balad||`https://balad.ir/search/${query}`,logo:"/images/map-services/balad.png"},
-  {name:"نشان",href:custom?.neshan||`https://neshan.org/maps/search/${query}`,logo:"/images/map-services/neshan.png"},
+  {name:"Google Maps",href:`https://www.google.com/maps/search/?api=1&query=${query}`,logo:"/images/map-services/google-maps.png"},
+  {name:"بلد",href:`https://balad.ir/search/${query}`,logo:"/images/map-services/balad.png"},
+  {name:"نشان",href:`https://neshan.org/maps/search/${query}`,logo:"/images/map-services/neshan.png"},
  ];
 }
+export const metadata: Metadata = {
+  title: 'تماس با ما',
+  description: 'اطلاعات تماس، نشانی فروشگاه و راه\u200cهای ارتباط با پشتیبانی میس دود.',
+  alternates: { canonical: '/contact' },
+  openGraph: { title: 'تماس با ما', description: 'اطلاعات تماس، نشانی فروشگاه و راه\u200cهای ارتباط با پشتیبانی میس دود.', url: '/contact' },
+};
+
 export default async function ContactPage() {
- const {contact}=await getCms();const maps=mapLinks(contact.address,contact.mapLinks);
+ const {contact}=await getCms();const maps=mapLinks(contact.address);
  return <main className="mx-auto w-full max-w-5xl space-y-8 px-4 py-9 sm:px-8 lg:py-14">
  <header className="space-y-3 text-center"><p className="text-xs font-bold tracking-[.25em] text-accent">MISS DOOD</p><h1 className="text-3xl font-black sm:text-4xl">تماس با ما</h1><p className="mx-auto max-w-xl text-sm leading-8 text-muted">{contact.description}</p><div className="mx-auto h-px w-24 bg-gradient-to-r from-transparent via-accent to-transparent"/></header>
  <section className="grid gap-5 md:grid-cols-2"><article className="rounded-3xl border border-line bg-gradient-to-br from-panel to-header p-6 sm:p-8"><div className="mb-5 flex size-12 items-center justify-center rounded-2xl border border-accent/30 bg-accent/10 text-accent"><Phone/></div><h2 className="mb-2 text-xl font-extrabold">ارتباط تلفنی</h2><p className="mb-5 text-sm leading-7 text-muted">برای تماس روی شماره بزنید.</p>

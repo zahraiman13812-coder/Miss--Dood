@@ -1,6 +1,7 @@
 import {NextRequest,NextResponse} from "next/server";
 import {db} from "@/lib/db";
 import {currentUser} from "@/lib/session";
+import {consumeAuthAttempt} from "@/lib/authRateLimit";
 import {bad,errorResponse,noStore,sameOrigin} from "@/lib/http";
 export const runtime="nodejs";
 export async function GET(_req:NextRequest,{params}:{params:Promise<{slug:string}>}){
@@ -10,6 +11,11 @@ export async function GET(_req:NextRequest,{params}:{params:Promise<{slug:string
 export async function POST(req:NextRequest,{params}:{params:Promise<{slug:string}>}){
  try{if(!sameOrigin(req))return bad("CROSS_ORIGIN",403);const actor=await currentUser();if(!actor)return bad("AUTH_REQUIRED",401);
  const {slug}=await params;if(!/^[a-z0-9][a-z0-9-]{0,119}$/.test(slug))return bad("INVALID_PRODUCT");
+ // Only visible, non-archived products can receive new reviews.
+ const product=await db().query<{slug:string}>("SELECT slug FROM products WHERE slug=$1 AND active=true AND deleted_at IS NULL",[slug]);
+ if(!product.rows[0])return bad("PRODUCT_UNAVAILABLE",404);
+ // Distributed database-backed limit shared between Vercel instances.
+ if(!await consumeAuthAttempt(`review:${actor.id}`,`product:${slug}`))return bad("TOO_MANY_ATTEMPTS",429);
  const input=await req.json();if(!input||typeof input!=="object"||!Number.isInteger(input.rating)||input.rating<1||input.rating>5||typeof input.body!=="string"||input.body.trim().length<10||input.body.trim().length>1500)return bad("INVALID_REVIEW");
  // Non-purchasers may submit moderated reviews; verified label is earned only after delivery.
 

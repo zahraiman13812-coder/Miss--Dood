@@ -1,4 +1,5 @@
-const required = ["DATABASE_URL", "RESEND_API_KEY", "EMAIL_FROM", "AUTH_OTP_SECRET"];
+// Check the actual Gmail-based OTP configuration without logging secrets.
+const required = ["DATABASE_URL", "AUTH_OTP_SECRET", "GMAIL_USER", "GMAIL_APP_PASSWORD"];
 let errors = 0;
 for (const key of required) {
   if (!process.env[key]?.trim()) {
@@ -13,17 +14,19 @@ if (process.env.AUTH_OTP_SECRET && process.env.AUTH_OTP_SECRET.length < 32) {
 if (process.env.DATABASE_URL) {
   try {
     const parsed = new URL(process.env.DATABASE_URL);
-    if (!(["postgresql:", "postgres:"].includes(parsed.protocol))) throw new Error("invalid protocol");
+    if (!["postgresql:", "postgres:"].includes(parsed.protocol)) throw new Error("invalid protocol");
   } catch {
     console.error("DATABASE_URL must be a valid postgres:// or postgresql:// URL");
     errors++;
   }
 }
-if (process.env.EMAIL_FROM?.includes("onboarding@resend.dev")) {
-  console.warn("Resend is in test-sender mode: delivery to arbitrary customer emails is not available until a sending domain is verified.");
+if (process.env.GMAIL_USER && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(process.env.GMAIL_USER.trim())) {
+  console.error("GMAIL_USER must be an email address");
+  errors++;
 }
-if (process.env.RESEND_API_KEY && !process.env.RESEND_API_KEY.startsWith("re_")) {
-  console.warn("RESEND_API_KEY does not begin with the expected re_ prefix.");
+const appPassword = process.env.GMAIL_APP_PASSWORD?.replace(/\s/g, "");
+if (appPassword && appPassword.length !== 16) {
+  console.warn("GMAIL_APP_PASSWORD is not 16 characters long after spaces are removed; check the App Password value.");
 }
 if (errors) process.exitCode = 1;
-else console.log("Required configuration present (no credentials printed). External service access not tested.");
+else console.log("Gmail OTP and database configuration present. Actual SMTP delivery and database connectivity not tested.");

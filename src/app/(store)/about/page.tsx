@@ -1,7 +1,15 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { getCms } from "@/lib/site-cms";
 export const dynamic="force-dynamic";
+export const metadata: Metadata = {
+  title: 'درباره میس دود',
+  description: 'درباره فروشگاه میس دود، اطلاعات و راه\u200cهای آشنایی بیشتر با مجموعه.',
+  alternates: { canonical: '/about' },
+  openGraph: { title: 'درباره میس دود', description: 'درباره فروشگاه میس دود، اطلاعات و راه\u200cهای آشنایی بیشتر با مجموعه.', url: '/about' },
+};
+
 export default async function AboutPage() {
   const {about}=await getCms();
   return <main className="mx-auto w-full max-w-4xl px-5 py-12"><article className="grid items-center gap-6 rounded-3xl border border-line bg-panel p-6 sm:grid-cols-[10rem_1fr] sm:p-9">

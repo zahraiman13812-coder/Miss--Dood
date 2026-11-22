@@ -2,6 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import localFont from "next/font/local";
+import { DEFAULT_DESCRIPTION, SITE_NAME, SITE_ORIGIN } from "@/lib/seo";
 
 const vazirmatn = localFont({
   src: [
@@ -17,23 +18,22 @@ const vazirmatn = localFont({
   fallback: ["Tahoma", "Arial", "sans-serif"],
 });
 
-const siteUrl = "https://missdoodproject.vercel.app";
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
-  title: { default: "MISS DOOD | میس دود", template: "%s | MISS DOOD" },
-  description: "وب‌سایت رسمی میس دود؛ مشاهده اطلاعات محصولات، پیگیری سفارش و پشتیبانی فروشگاه.",
+  metadataBase: new URL(SITE_ORIGIN),
+  title: { default: SITE_NAME, template: "%s | MISS DOOD" },
+  description: DEFAULT_DESCRIPTION,
   applicationName: "MISS DOOD",
+  robots: { index: true, follow: true, googleBot: { index: true, follow: true } },
   icons: {
-    icon: [{ url: "/icon.png", type: "image/png", sizes: "512x512" }, { url: "/favicon.ico", sizes: "any" }],
+    icon: [{ url: "/favicon.ico", sizes: "any" }],
     apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
   },
   openGraph: {
-    type: "website", locale: "fa_IR", siteName: "MISS DOOD", url: siteUrl,
-    title: "MISS DOOD | میس دود",
-    description: "وب‌سایت رسمی میس دود",
-    images: [{ url: "/opengraph-image.png", width: 1200, height: 630, alt: "نشان طلایی MISS DOOD" }],
+    type: "website", locale: "fa_IR", siteName: "MISS DOOD", url: SITE_ORIGIN,
+    title: SITE_NAME, description: DEFAULT_DESCRIPTION,
+    images: [{ url: "/opengraph-image.png", width: 1200, height: 630, alt: "MISS DOOD" }],
   },
-  twitter: { card: "summary_large_image", images: ["/twitter-image.png"] },
+  twitter: { card: "summary_large_image", title: SITE_NAME, description: DEFAULT_DESCRIPTION, images: ["/twitter-image.png"] },
 };
 
 export default function Layout({ children }: { children: ReactNode }) {

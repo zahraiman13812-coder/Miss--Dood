@@ -75,7 +75,7 @@ export async function POST(req:NextRequest) {try {
     if(!express.rows[0])throw new OrderError("EXPRESS_UNAVAILABLE");
     fee=Number(express.rows[0].fee);
   }
-  const rows=await client.query<{slug:string;name:string;price_toman:string;stock:number}>("SELECT slug,name,price_toman::text,stock FROM products WHERE slug = ANY($1::text[]) AND active=true ORDER BY slug FOR UPDATE",[items.map(i=>i.slug)]);
+  const rows=await client.query<{slug:string;name:string;price_toman:string;stock:number}>("SELECT slug,name,price_toman::text,stock FROM products WHERE slug = ANY($1::text[]) AND active=true AND deleted_at IS NULL ORDER BY slug FOR UPDATE",[items.map(i=>i.slug)]);
   // Product row locks also protect stock levels across different checkouts.
   if(rows.rows.length!==items.length)throw new OrderError("PRODUCT_UNAVAILABLE");
   let subtotal=0;const lines=[];

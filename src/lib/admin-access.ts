@@ -8,8 +8,9 @@ export async function getAdminScope(user:CurrentUser|null):Promise<AdminScope|nu
  if(user?.role!=="admin")return null;
  const result=await db().query<{scope:string}>("SELECT scope FROM admin_permissions WHERE user_id=$1",[user.id]);
  const scope=result.rows[0]?.scope;
- // Existing admin users without explicit permissions retain full control.
- return scopes.includes(scope as AdminScope)?scope as AdminScope:"owner";
+ // Fail closed. Migration 014 explicitly backfills every existing administrator.
+ // A new admin without an assigned scope must never receive owner privileges.
+ return scopes.includes(scope as AdminScope) ? scope as AdminScope : null;
 }
 export async function adminCan(user:CurrentUser|null,area:AdminArea):Promise<boolean>{
  const scope=await getAdminScope(user);

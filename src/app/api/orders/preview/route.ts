@@ -23,7 +23,7 @@ export async function POST(req:NextRequest){try{
  if(method!=="pickup"&&!coordsPresent)return bad("LOCATION_REQUIRED");
  const city=typeof v.shippingCity==='string'?v.shippingCity.trim():'';
  if(!city||city.length>120)return bad("INVALID_SHIPPING_CITY");
- const products=await db().query<{slug:string;name:string;stock:number;price:string|null}>("SELECT slug,name,stock,price_toman::text AS price FROM products WHERE active=true AND slug=ANY($1::text[])",[...seen]);
+ const products=await db().query<{slug:string;name:string;stock:number;price:string|null}>("SELECT slug,name,stock,price_toman::text AS price FROM products WHERE active=true AND deleted_at IS NULL AND slug=ANY($1::text[])",[...seen]);
  if(products.rows.length!==seen.size)return bad("PRODUCT_UNAVAILABLE",409);
  for(const i of v.items){const p=products.rows.find(p=>p.slug===i.slug)!;if(p.stock<i.quantity)return bad("INSUFFICIENT_STOCK",409);if(p.price===null)return bad("PRICE_UNAVAILABLE",409);const amount=Number(p.price)*i.quantity;if(!Number.isSafeInteger(amount)||!Number.isSafeInteger(subtotal+amount))return bad("AMOUNT_OVERFLOW");subtotal+=amount;lines.push({slug:p.slug,name:p.name,quantity:i.quantity,amount})}
  let fee=0;
