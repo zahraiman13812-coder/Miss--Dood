@@ -15,10 +15,8 @@ const links = [
   {href:"/admin/reviews",label:"نظرات مشتریان",icon:MessageSquare},
   {href:"/admin/analytics",label:"گزارش‌های تحلیلی",icon:BarChart3},
   {href:"/admin/orders",label:"مدیریت سفارش‌ها",icon:ClipboardList},
-  {href:"/admin/carts",label:"سبدهای خرید",icon:ClipboardList},
   {href:"/admin/customers",label:"مشتریان",icon:Users},
   {href:"/admin/shipping",label:"ارسال و تعرفه‌ها",icon:Truck},
-  {href:"/admin/support",label:"پشتیبانی",icon:MessageSquare},
   {href:"/admin/notifications",label:"اعلان‌ها",icon:Bell},
   {href:"/admin/operations",label:"سلامت و سرعت",icon:Activity},
   {href:"/admin/drafts",label:"پیش‌نویس محتوا",icon:FilePenLine},
@@ -35,9 +33,9 @@ export default function AdminShell({children}:{children:ReactNode}){
   if(href==="/admin/drafts")return scope==="manager"||scope==="catalog";
   if(scope==="manager")return true;
   if(scope==="catalog")return ["/admin/content","/admin/media","/admin/products","/admin/products/new","/admin/reviews"].includes(href);
-  if(scope==="warehouse")return href==="/admin/inventory"||href==="/admin/carts";
-  if(scope==="orders")return ["/admin/orders","/admin/carts","/admin/shipping"].includes(href);
-  return href==="/admin/support";
+  if(scope==="warehouse")return href==="/admin/inventory";
+  if(scope==="orders")return ["/admin/orders","/admin/shipping"].includes(href);
+  return false;
  };
  useEffect(()=>{setMobileOpen(false)},[path]);
  return <div dir="rtl" className="min-h-dvh min-w-0 bg-[#0c090a] text-[#f4e5c7] lg:flex">

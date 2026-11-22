@@ -31,7 +31,7 @@ export default function CatalogEditor() {
     const fields=new FormData(e.currentTarget);
     const value=(key:string)=>String(fields.get(key) ?? "").trim();
     try {
-      const price=Number(value("price")), stock=Number(value("stock"));
+      const price=Number(value("price").replace(/[,،\s]/g,"")), stock=Number(value("stock"));
       if (!value("name") || !value("description") || !value("price") || !value("stock") || !Number.isSafeInteger(price) || price<0 || !Number.isSafeInteger(stock) || stock<0) throw new Error("نام، توضیحات، قیمت و موجودی معتبر را وارد کنید.");
       const specs:[string,string][] = value("specs").split("\n").filter(line=>line.trim()).map(line=>{
         const pos=line.indexOf(":");
@@ -63,7 +63,7 @@ export default function CatalogEditor() {
       <label>نام کالا<input required maxLength={120} name="name" className={input} defaultValue={item?.name}/></label>
       <label>برند<select name="brand" className={input} defaultValue={item?.brand}><option value="">بدون برند ثبت‌شده</option>{brands.map(b=><option key={b.slug} value={b.slug}>{b.name}</option>)}</select></label>
       <label>دسته‌بندی<select name="category" className={input} defaultValue={item?.category}>{categories.map(([slug,label])=><option key={slug} value={slug}>{label}</option>)}</select></label>
-      <label>قیمت (تومان)<input name="price" type="number" min="0" step="1" required className={input} defaultValue={item?.priceToman ?? ""}/></label>
+      <label>قیمت (تومان)<input name="price" type="text" inputMode="numeric" pattern="[0-9,،]*" required className={input} defaultValue={item?.priceToman?.toLocaleString("en-US") ?? ""} onChange={e=>{const raw=e.target.value.replace(/[,،\s]/g,"");if(raw===""||/^[0-9]+$/.test(raw))e.target.value=raw.replace(/\B(?=(\d{3})+(?!\d))/g,",")}}/></label>
       <label>موجودی (عدد)<input name="stock" type="number" min="0" step="1" required className={input} defaultValue={stock[selected] ?? ""}/></label>
       <label>عکس کالا<input className={input} type="file" name="photo" accept="image/jpeg,image/png,image/webp" required={!item}/></label>
       <label className="sm:col-span-2">توضیحات<textarea className={input} name="description" required rows={2} defaultValue={item?.description}/></label>

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import {getCms} from "@/lib/site-cms";
 import DecorDeck from "@/features/decor/DecorDeck";
-import BuyingGuide from "@/components/home/BuyingGuide";
 import LatestProducts from "@/components/home/LatestProducts";
 import CategoryGrid from "@/components/home/CategoryGrid";
 import BrandStrip from "@/components/home/BrandStrip";
@@ -40,6 +39,5 @@ export default async function Home() {
     <LatestProducts/>
     <BrandStrip brandList={brandList}/>
     <DecorDeck/>
-    <BuyingGuide/>
   </main>;
 }

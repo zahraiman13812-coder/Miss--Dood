@@ -8,6 +8,8 @@ type ImageItem={src:string;alt:string};
 type Product={slug:string;name:string;category:string;brand:string;description:string;priceToman:number|null;stock:number;active:boolean;images:ImageItem[];specs:[string,string][]};
 const empty:Product={slug:"",name:"",category:"lighters",brand:"",description:"",priceToman:null,stock:0,active:true,images:[],specs:[]};
 const control="md-control mt-2 w-full min-w-0";
+const formatPrice=(n:number|null)=>n===null?"":n.toLocaleString("en-US");
+const parsePrice=(s:string):number|null=>{const digits=s.replace(/[,،\s]/g,"");return digits===""?null:Number(digits)};
 const btn="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#987447] px-4 py-2 text-sm text-[#f2d398] disabled:opacity-40";
 const panel="space-y-4 rounded-2xl border border-[#655034] bg-[#18120f] p-4 sm:p-6";
 const getMessage=(code:string)=>({INVALID_PRODUCT:"یکی از اطلاعات محصول نامعتبر است؛ تصویر اصلی، نام، دسته و مشخصات را بررسی کنید.",ALREADY_EXISTS:"شناسه این محصول قبلاً ثبت شده است.",INVENTORY_PERMISSION_REQUIRED:"برای تغییر موجودی اجازه دسترسی انبار لازم است.",FORBIDDEN:"برای ویرایش محصول مجوز کافی ندارید.",NOT_FOUND:"محصول پیدا نشد."} as Record<string,string>)[code]??code;
@@ -44,6 +46,7 @@ export default function ProductEditor({mode,slug}:{mode:"create"|"edit";slug?:st
   setValue(v=>({...v,images:[...v.images,...uploaded]}));setMessage("عکس‌ها اضافه شدند؛ برای ثبت نهایی دکمه ذخیره محصول را بزنید.");
  }catch(e){setMessage(e instanceof Error?e.message:"خطا در آپلود")}finally{setBusy(false)}}
  async function save(event:FormEvent){event.preventDefault();setBusy(true);setMessage("");try{
+  if(value.priceToman!==null&&(!Number.isSafeInteger(value.priceToman)||value.priceToman<0))throw Error("قیمت محصول معتبر نیست.");
   if(!value.images.length)throw Error("ابتدا حداقل یک عکس برای محصول اضافه کنید.");
   if(new Set(value.images.map(i=>i.src)).size!==value.images.length)throw Error("عکس تکراری در گالری وجود دارد.");
   if(value.specs.some(([a,b])=>!a.trim()||!b.trim()))throw Error("مشخصات فنی خالی را تکمیل یا حذف کنید.");
@@ -74,7 +77,7 @@ export default function ProductEditor({mode,slug}:{mode:"create"|"edit";slug?:st
     <label>نام محصول<input className={control} required maxLength={200} value={value.name} onChange={e=>set({name:e.target.value})}/></label>
     <label>دسته‌بندی{catalog.length?<select className={control} value={value.category} onChange={e=>set({category:e.target.value,brand:""})}><option value={value.category}>{catalog.find(c=>c.slug===value.category)?.label??value.category}</option>{catalog.filter(c=>c.slug!==value.category).map(c=><option key={c.slug} value={c.slug}>{c.label}</option>)}</select>:<input className={control} required pattern="[a-z0-9][a-z0-9-]{0,79}" value={value.category} onChange={e=>set({category:e.target.value})}/>}</label>
     <label>برند {catalog.find(c=>c.slug===value.category)?.brands?.length?<select className={control} value={value.brand} onChange={e=>set({brand:e.target.value})}><option value="">بدون برند</option>{value.brand&&!catalog.find(c=>c.slug===value.category)?.brands?.some(b=>b.slug===value.brand)&&<option value={value.brand}>{value.brand}</option>}{catalog.find(c=>c.slug===value.category)?.brands?.map(b=><option value={b.slug} key={b.slug}>{b.label}</option>)}</select>:<input className={control} value={value.brand} pattern="[a-z0-9-]*" onChange={e=>set({brand:e.target.value})}/>}</label>
-    <label>قیمت (تومان)<input className={control} type="number" min="0" step="1" value={value.priceToman??""} onChange={e=>set({priceToman:e.target.value?Number(e.target.value):null})}/></label>
+    <label>قیمت (تومان)<input className={control} type="text" inputMode="numeric" pattern="[0-9,،]*" placeholder="مثلاً 1,250,000" value={formatPrice(value.priceToman)} onChange={e=>{const raw=e.target.value.replace(/[,،\s]/g,"");if(raw===""||/^[0-9]+$/.test(raw))set({priceToman:parsePrice(e.target.value)})}}/></label>
     <label>موجودی<input className={control} type="number" min="0" max="1000000" step="1" disabled={!hasStockPermission} value={value.stock} onChange={e=>set({stock:Number(e.target.value)})}/>{!hasStockPermission&&<span className="mt-1 block text-xs text-[#be9876]">تغییر موجودی مخصوص مدیر دارای مجوز انبار است.</span>}</label>
     <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={value.active} onChange={e=>set({active:e.target.checked})}/> محصول فعال و قابل نمایش باشد</label>
     <label className="sm:col-span-2">توضیحات محصول<textarea className={`${control} min-h-32`} maxLength={3000} value={value.description} onChange={e=>set({description:e.target.value})}/></label>
