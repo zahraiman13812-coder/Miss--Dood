@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {try {
  const pageSize=Number.isSafeInteger(sizeValue)?Math.max(1,Math.min(sizeValue,100)):100;
  const offset=(page-1)*pageSize;
  const countResult=await db().query<{count:number}>("SELECT count(*)::int AS count FROM orders WHERE user_id=$1",[user.id]);
- const result=await db().query(`SELECT o.id,o.status,o.created_at AS date,o.subtotal::float8 AS subtotal,o.total::float8 AS total,
+ const result=await db().query(`SELECT o.id,o.status,o.created_at AS date,o.subtotal::float8 AS subtotal,o.total::float8 AS total,o.payment_status,
  json_build_object('city',o.shipping_city,'fee',o.shipping_fee::float8,'days','', 'method',o.shipping_method,'postalCode',o.postal_code,'province',o.shipping_province) AS shipping,
  COALESCE((SELECT json_agg(json_build_object('name',i.product_name,'quantity',i.quantity,'amount',i.amount::float8)) FROM order_items i WHERE i.order_id=o.id),'[]'::json) AS items
  FROM orders o WHERE o.user_id=$1 ORDER BY o.created_at DESC,o.id DESC LIMIT $2 OFFSET $3`,[user.id,pageSize,offset]);
@@ -48,7 +48,7 @@ export async function POST(req:NextRequest) {try {
  for(const item of data.items){if(!item||typeof item.slug!=="string"||!/^[a-z0-9][a-z0-9-]{0,119}$/.test(item.slug)||!Number.isSafeInteger(item.quantity)||item.quantity<1||item.quantity>99||unique.has(item.slug))return bad("INVALID_ITEMS");unique.add(item.slug);items.push({slug:item.slug,quantity:item.quantity});}
  // Fast path for retries after the original request has already committed.
  const existing=await db().query<{id:string}>("SELECT id FROM orders WHERE user_id=$1 AND idempotency_key=$2",[user.id,key]);
- if(existing.rows[0])return NextResponse.json({orderId:existing.rows[0].id},{status:200,headers:noStore});
+ if(existing.rows[0])return NextResponse.json({orderId:existing.rows[0].id,paymentStatus:"unpaid",paymentRequired:true},{status:200,headers:noStore});
  const {contact:storeContact}=await getCms();
  const orderId=await transaction(async client=>{
   // Serialize retries for the same user and idempotency key, even if the
@@ -96,5 +96,5 @@ export async function POST(req:NextRequest) {try {
   await client.query("INSERT INTO order_events(order_id,actor_id,to_status,note) VALUES($1,$2,'received','ثبت سفارش')",[result.rows[0].id,user.id]);
   return result.rows[0].id;
  });
- return NextResponse.json({orderId},{status:201,headers:noStore});
+ return NextResponse.json({orderId,paymentStatus:"unpaid",paymentRequired:true},{status:201,headers:noStore});
 } catch(e){if(e instanceof OrderError)return bad(e.code,409);if(e instanceof SyntaxError)return bad("INVALID_JSON");return errorResponse(e);} }

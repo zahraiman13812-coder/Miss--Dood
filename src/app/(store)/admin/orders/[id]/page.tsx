@@ -13,7 +13,7 @@ type Order = {
   shipping_province: string; postal_code: string; building: string; unit: string;
   shipping_method: string; latitude: number | null; longitude: number | null;
   subtotal: number; shipping_fee: number; total: number; note: string | null;
-  buyer_name: string; buyer_email: string;
+  buyer_name: string; buyer_email: string; payment_status:string; paid_at:string|null; payment_reference:string|null;
 };
 type Line = { product_slug: string; product_name: string; quantity: number; unit_price: number; amount: number };
 type Event = { id: number; from_status: string | null; to_status: string; note: string; created_at: string };
@@ -32,7 +32,7 @@ export default async function AdminOrderInvoice({params}:{params:Promise<{id:str
   const orderResult = await db().query<Order>(`SELECT o.id,o.created_at,o.status,o.recipient_name,o.recipient_phone,
     o.shipping_city,o.shipping_address,o.shipping_province,o.postal_code,o.building,o.unit,
     o.shipping_method,o.latitude,o.longitude,o.subtotal::float8 AS subtotal,
-    o.shipping_fee::float8 AS shipping_fee,o.total::float8 AS total,o.note,
+    o.shipping_fee::float8 AS shipping_fee,o.total::float8 AS total,o.note,o.payment_status,o.paid_at,o.payment_reference,
     u.full_name AS buyer_name,u.email AS buyer_email
     FROM orders o JOIN users u ON u.id=o.user_id WHERE o.id=$1`,[id]);
   const order=orderResult.rows[0];
@@ -59,7 +59,7 @@ export default async function AdminOrderInvoice({params}:{params:Promise<{id:str
         <div>تاریخ ثبت: {date(order.created_at)}</div>
         <div>وضعیت: <strong>{statusName[order.status]??order.status}</strong></div>
         <div>نوع سفارش: ثبت اینترنتی</div>
-        <div>وضعیت پرداخت: <strong>تأیید پرداخت از این اطلاعات قابل تشخیص نیست</strong></div>
+        <div>وضعیت پرداخت: <strong>{order.payment_status==="paid"?"تأییدشده":order.payment_status==="refunded"?"وجه بازگشت داده شده":"پرداخت‌نشده / تأیید نشده"}</strong></div>{order.payment_status==="paid"&&order.payment_reference&&<div>شماره مرجع پرداخت: <bdi>{order.payment_reference}</bdi></div>}
       </div>
     </header>
     <div className="grid gap-4 md:grid-cols-2">

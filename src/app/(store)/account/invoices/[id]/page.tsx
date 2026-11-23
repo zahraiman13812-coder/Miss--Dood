@@ -8,7 +8,7 @@ import OrderTimeline from "@/features/account/OrderTimeline";
 type Order = {
   id: string; created_at: string; status: string; recipient_name: string;
   recipient_phone: string; shipping_city: string; shipping_address: string;
-  subtotal: number; shipping_fee: number; total: number; note: string | null; postal_code:string; shipping_province:string; building:string; unit:string; shipping_method:string; latitude:number|null; longitude:number|null;
+  subtotal: number; shipping_fee: number; total: number; note: string | null; postal_code:string; shipping_province:string; building:string; unit:string; shipping_method:string; latitude:number|null; longitude:number|null; payment_status:string;
 };
 type Item = { product_name: string; quantity: number; unit_price: number; amount: number };
 const price = (n: number) => `${n.toLocaleString("fa-IR")} تومان`;
@@ -24,7 +24,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const orderResult = await db().query<Order>(`
     SELECT id,created_at,status,recipient_name,recipient_phone,shipping_city,shipping_address,
-           subtotal::float8 AS subtotal,shipping_fee::float8 AS shipping_fee,total::float8 AS total,note,postal_code,shipping_province,building,unit,shipping_method,latitude,longitude
+           subtotal::float8 AS subtotal,shipping_fee::float8 AS shipping_fee,total::float8 AS total,note,postal_code,shipping_province,building,unit,shipping_method,latitude,longitude,payment_status
     FROM orders WHERE id=$1 AND user_id=$2`, [id, user.id]);
   const order = orderResult.rows[0];
   if (!order) notFound();
@@ -45,7 +45,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
         </div>
         <div className="text-sm leading-8"><p>شناسه: <bdi dir="ltr">{order.id}</bdi></p>
           <p>تاریخ: {new Date(order.created_at).toLocaleDateString("fa-IR")}</p>
-          <p>وضعیت: {statuses[order.status] ?? order.status}</p></div>
+          <p>وضعیت سفارش: {statuses[order.status] ?? order.status}</p><p>وضعیت پرداخت: <strong>{order.payment_status==="paid"?"تأییدشده":order.payment_status==="refunded"?"بازگشت وجه":"پرداخت‌نشده / تأییدنشده"}</strong></p></div>
       </header>
       <section className="mb-6 grid gap-4 text-sm sm:grid-cols-2">
         <div><h2 className="mb-2 font-black">مشخصات خریدار</h2><p>{user.full_name || user.email}</p><p dir="ltr" className="text-right sm:text-right">{user.email}</p></div>
@@ -73,7 +73,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
         <div className="flex justify-between border-t border-[#967741]/50 pt-3 text-lg font-black print:border-gray-300"><span>مبلغ کل</span><span>{price(order.total)}</span></div>
       </div>
       {order.note && <p className="mt-6 border-t border-[#967741]/30 pt-4 text-sm">یادداشت سفارش: {order.note}</p>}
-      <p className="mt-8 text-xs leading-7 text-[#b9a987] print:text-gray-600">وضعیت پرداخت در این سند تأیید نمی‌شود؛ ثبت سفارش به‌معنی پرداخت وجه نیست.</p>
+      <p className="mt-8 text-xs leading-7 text-[#b9a987] print:text-gray-600">پرداخت فقط با تأیید معتبر سرویس درگاه قابل ثبت است. تا زمان اتصال درگاه، این صورتحساب رسید پرداخت محسوب نمی‌شود.</p>
     </article>
   </main>;
 }

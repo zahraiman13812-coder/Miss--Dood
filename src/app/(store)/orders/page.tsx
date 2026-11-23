@@ -5,7 +5,7 @@ import { Search, RefreshCw, PackageSearch, ClipboardList, CheckCircle2, Truck, C
 import { productPrice } from "@/data/mock/latestProducts";
 
 type Status = "received" | "processing" | "shipped" | "delivered" | "cancelled";
-type Order = { id: string; status: Status; date: string; total: number; items: { name: string; quantity: number; amount: number }[] };
+type Order = { id: string; status: Status; date: string; total: number; payment_status: string; items: { name: string; quantity: number; amount: number }[] };
 const statusLabel: Record<Status,string> = { received:"ثبت سفارش", processing:"در حال آماده‌سازی", shipped:"تحویل به پست", delivered:"تحویل شده", cancelled:"لغو شده" };
 const steps: Status[] = ["received","processing","shipped","delivered"];
 const inputClass = "min-h-12 min-w-0 flex-1 rounded-xl border border-line bg-header px-4 text-left outline-none focus:border-accent focus:ring-2 focus:ring-accent/20";
@@ -54,7 +54,7 @@ export default function OrdersPage() {
       return <article key={order.id} className="space-y-5 rounded-2xl border border-line bg-panel p-4 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div><p className="text-xs text-muted">کد پیگیری</p><p className="mt-1 break-all font-mono text-sm" dir="ltr">{order.id}</p><p className="mt-2 text-xs text-muted">{new Date(order.date).toLocaleString("fa-IR")}</p></div>
-          <span className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-bold ${order.status==="cancelled"?"bg-red-500/10 text-red-600":"bg-accent/10 text-accent"}`}><Clock3 size={14}/>{statusLabel[order.status]??order.status}</span>
+          <span className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-bold ${order.status==="cancelled"?"bg-red-500/10 text-red-600":"bg-accent/10 text-accent"}`}><Clock3 size={14}/>{statusLabel[order.status]??order.status}</span><span className="rounded-full border border-amber-700/50 px-3 py-2 text-xs text-amber-300">{order.payment_status==="paid"?"پرداخت تأییدشده":order.payment_status==="refunded"?"وجه برگشت داده شد":"پرداخت تأیید نشده"}</span>
         </div>
         {order.status!=="cancelled"&&<div className="grid grid-cols-4 gap-1" aria-label="مراحل سفارش">{steps.map((step,index)=>{const done=index<=current;const Icon=index===0?ClipboardList:index===1?Clock3:index===2?Truck:CheckCircle2;return <div key={step} className="min-w-0 text-center"><div className={`mx-auto flex size-9 items-center justify-center rounded-full ${done?"bg-accent text-on-accent":"bg-header text-muted"}`}><Icon size={17}/></div><p className={`mt-2 text-[10px] leading-5 sm:text-xs ${done?"font-bold text-accent":"text-muted"}`}>{statusLabel[step]}</p></div>;})}</div>}
         <div className="border-t border-line pt-4"><ul className="space-y-2">{order.items.map((item,index)=><li key={`${item.name}-${index}`} className="flex justify-between gap-3 text-sm"><span className="min-w-0">{item.name} <bdi>× {item.quantity.toLocaleString("fa-IR")}</bdi></span><span className="shrink-0">{productPrice(item.amount)}</span></li>)}</ul><div className="mt-4 flex items-center justify-between border-t border-line pt-3 font-bold"><span>مبلغ کل</span><span className="text-accent">{productPrice(order.total)}</span></div></div>
