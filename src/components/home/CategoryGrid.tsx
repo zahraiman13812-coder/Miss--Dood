@@ -1,7 +1,8 @@
-import Image from "next/image";
+import CatalogImage from "@/components/home/CatalogImage";
+import {categoryImageSlugs} from "@/components/home/catalog-static-images";
 import Link from "next/link";
-import { ArrowUpLeft, Package } from "lucide-react";
-import {categories as knownCategories} from "@/data/navigation";
+import { ArrowUpLeft } from "lucide-react";
+
 
 
 export default function CategoryGrid({categories}:{categories:{slug:string;label:string;image?:string}[]}) {
@@ -15,7 +16,7 @@ export default function CategoryGrid({categories}:{categories:{slug:string;label
       {categories.map(({slug,label,image})=><li key={slug} className="min-w-0">
         <Link href={{pathname:"/shop",query:{category:slug}}} className="group flex h-full min-w-0 flex-col overflow-hidden rounded-[20px] border border-[#564629] bg-gradient-to-b from-[#1c1913] to-[#100e0a] p-2.5 transition duration-200 hover:-translate-y-1 hover:border-[#b69053] hover:shadow-[0_12px_35px_rgba(0,0,0,.3)] focus-visible:border-[#e4bf76] sm:p-4">
           <div className="relative mx-auto aspect-square w-full max-w-40 overflow-hidden rounded-xl bg-[#11100d]/60 p-2">
-            {(image||knownCategories.some(([id])=>id===slug))?<Image unoptimized={Boolean(image)} src={image||`/images/categories/${slug}.webp`} alt="" fill sizes="(min-width: 1280px) 160px, (min-width: 640px) 25vw, 42vw" className="object-contain p-2 transition-transform duration-300 group-hover:scale-105"/>:<div className="flex size-full items-center justify-center text-[#d6b471]"><Package size={48}/></div>}
+            <CatalogImage src={image || (categoryImageSlugs.has(slug)?`/images/categories/${slug}.webp`:undefined)} alt={label} fill sizes="(min-width: 1280px) 160px, (min-width: 640px) 25vw, 42vw" className="object-contain p-2 transition-transform duration-300 group-hover:scale-105"/>
           </div>
           <div className="mt-auto flex min-h-12 min-w-0 items-center justify-between gap-2 border-t border-[#574629] pt-3 sm:mt-3">
             <span className="text-sm font-extrabold text-[#f4e8d2] transition group-hover:text-[#e4bf76] sm:text-base">{label}</span>

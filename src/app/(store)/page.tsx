@@ -28,7 +28,7 @@ export default async function Home() {
  const {banners,catalog}=await getCms();
  const brandList = Array.from(
    new Map(catalog.categories.flatMap(category =>
-     category.brands.map(brand => [brand.slug, {slug: brand.slug, name: brand.label}] as const)
+     category.brands.map(brand => [brand.slug, {slug: brand.slug, name: brand.label, image: brand.image}] as const)
    )).values()
  );
   return <main aria-label="صفحه اصلی" className="w-full min-w-0 overflow-x-clip">

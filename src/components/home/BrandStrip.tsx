@@ -1,8 +1,9 @@
 "use client";
 
-import Image from "next/image";
+import CatalogImage from "@/components/home/CatalogImage";
+import {brandImageSlugs} from "@/components/home/catalog-static-images";
 import Link from "next/link";
-import { brands as knownBrands } from "@/data/brands";
+
 
 export default function BrandStrip({brandList}:{brandList:{slug:string;name:string;image?:string}[]}) {
   return (
@@ -16,8 +17,7 @@ export default function BrandStrip({brandList}:{brandList:{slug:string;name:stri
           <Link key={brand.slug} href={{pathname:"/shop",query:{brand:brand.slug}}}
             className="group flex snap-start w-28 shrink-0 flex-col rounded-2xl border border-[#66502e] bg-[#18130f] p-2 transition-colors hover:border-[#e4bf76] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e4bf76] sm:w-36">
             <span className="grid h-20 place-items-center overflow-hidden rounded-xl bg-[#211b17] sm:h-24">
-              {(brand.image||knownBrands.some(b=>b.slug===brand.slug))?<Image unoptimized={Boolean(brand.image)} src={brand.image||`/images/brands/${brand.slug}.webp`} alt={brand.name} width={100} height={80}
-                className="h-[78%] w-[80%] object-contain motion-safe:transition-transform motion-safe:group-hover:scale-105"/>:<span className="text-xs font-bold text-[#9e3438]">{brand.name}</span>}
+              <CatalogImage src={brand.image || (brandImageSlugs.has(brand.slug)?`/images/brands/${brand.slug}.webp`:undefined)} alt={brand.name} width={100} height={80} className="h-[78%] w-[80%] object-contain motion-safe:transition-transform motion-safe:group-hover:scale-105"/>
             </span>
             <bdi className="mt-2 block truncate text-center text-sm font-semibold text-[#f3e5c6]">{brand.name}</bdi>
           </Link>
