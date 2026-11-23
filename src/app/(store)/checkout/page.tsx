@@ -13,6 +13,7 @@ import LocationPicker, {type Coordinates} from "@/features/account/LocationPicke
 import {storeContact as defaultContact} from "@/data/storeContact";
 import {IranCitySelect} from "@/features/store/IranCitySelect";
 import {findShippingRule} from "@/features/store/store";
+import {postalDigits} from "@/lib/postal-code";
 
 type DeliveryMethod = string;
 type DynamicRate={key:string;label:string;fee:number;days:string};
@@ -69,7 +70,7 @@ export default function CheckoutPage() {
   const selectedCity = method==="pickup" && !city ? "تهران" : city;
   const chosenRate=dynamicRates.find(r=>r.key===method);
   const ratesAvailable=dynamicRates.length>0;
-  const methodItems=ratesAvailable ? dynamicRates.map(r=>({id:r.key,label:r.label,caption:`${r.days} · ${productPrice(r.fee)}`,icon:r.key==="pickup"?Store:r.key==="express"?Zap:Truck})) : methods;
+  const methodItems=ratesAvailable ? dynamicRates.filter(r=>["post","express","pickup"].includes(r.key)).map(r=>({id:r.key,label:r.label,caption:`${r.days} · ${productPrice(r.fee)}`,icon:r.key==="pickup"?Store:r.key==="express"?Zap:Truck})) : methods;
 
   const postalRule = findShippingRule(shipping,selectedCity,nationalPost);
   const shippingFee = ratesAvailable ? chosenRate?.fee ?? null : method === "pickup" ? 0 : method === "express" && settings?.express?.active ? settings.express.fee : method === "post" ? postalRule?.fee : null;
@@ -90,11 +91,10 @@ export default function CheckoutPage() {
   const shippingAddressText = recipient.street.trim() === recipient.address.trim()
     ? recipient.address.trim()
     : `${recipient.street.trim()}، ${recipient.address.trim()}`;
-  const postalCode = recipient.postalCode.replace(/[۰-۹]/g,c=>String(c.charCodeAt(0)-1776)).replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-1632));
+  const postalCode = postalDigits(recipient.postalCode);
   function validate() {
     if(recipient.name.trim().length < 2 || !validPhone) return "نام کامل و شماره تماس معتبر وارد کنید.";
     if(method!=="pickup" && (recipient.address.trim().length<6 || recipient.street.trim().length<3 || !recipient.province.trim() || !recipient.building.trim() || !/^\d{10}$/.test(postalCode)))return "آدرس کامل و کد پستی ۱۰ رقمی الزامی است.";
-    if(method!=="pickup" && !coords)return "موقعیت دقیق را روی نقشه انتخاب و تأیید کنید.";
     if(!canCheckout)return "تعرفه انتخاب‌شده فعال نیست یا سبد خرید/شهر را بررسی کنید.";
     return "";
   }
@@ -107,7 +107,7 @@ export default function CheckoutPage() {
       requestId.current ??= crypto.randomUUID();
       const response=await fetch("/api/orders",{method:"POST",headers:{"Content-Type":"application/json","Idempotency-Key":requestId.current},body:JSON.stringify({recipientName:recipient.name,recipientPhone:recipient.phone,shippingAddress:method==="pickup"?"":shippingAddressText,shippingCity:selectedCity,shippingProvince:method==="pickup"?"تهران":recipient.province,building:method==="pickup"?"":recipient.building,unit:method==="pickup"?"":recipient.unit,postalCode:method==="pickup"?"":postalCode,latitude:coords?.lat??null,longitude:coords?.lng??null,shippingMethod:method,items:lines.map(l=>({slug:l.product.slug,quantity:l.quantity}))})});
       const data=await response.json();
-      if(!response.ok){const messages:Record<string,string>={AUTH_REQUIRED:"برای سفارش وارد حساب شوید.",EXPRESS_UNAVAILABLE:"ارسال اکسپرس فعلاً فعال نیست.",INVALID_SHIPPING_CITY:"برای شهر انتخاب‌شده تعرفه وجود ندارد.",INVALID_POSTAL_CODE:"کد پستی معتبر نیست.",LOCATION_REQUIRED:"موقعیت روی نقشه را انتخاب کنید.",INSUFFICIENT_STOCK:"موجودی کالا کافی نیست.",PRODUCT_UNAVAILABLE:"یک محصول دیگر موجود نیست."};throw Error(messages[data.error]||"ثبت سفارش ناموفق بود.");}
+      if(!response.ok){const messages:Record<string,string>={AUTH_REQUIRED:"برای سفارش وارد حساب شوید.",EXPRESS_UNAVAILABLE:"ارسال اکسپرس فعلاً فعال نیست.",INVALID_SHIPPING_CITY:"برای شهر انتخاب‌شده تعرفه وجود ندارد.",INVALID_POSTAL_CODE:"کد پستی معتبر نیست.",INSUFFICIENT_STOCK:"موجودی کالا کافی نیست.",PRODUCT_UNAVAILABLE:"یک محصول دیگر موجود نیست."};throw Error(messages[data.error]||"ثبت سفارش ناموفق بود.");}
       setReceipt(data.orderId);
       for(const [slug,qty] of Object.entries(cart))changeQuantity(slug,-qty);
       void fetch("/api/cart-snapshot",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({items:{}})}).catch(()=>{});
@@ -145,12 +145,12 @@ export default function CheckoutPage() {
         <label>نام و نام خانوادگی<input required autoComplete="name" maxLength={120} className={input} value={recipient.name} onChange={e=>setRecipient(old=>({...old,name:e.target.value}))}/></label>
         <label>شماره تماس<input required type="tel" dir="ltr" autoComplete="tel" maxLength={22} className={input} value={recipient.phone} onChange={e=>setRecipient(old=>({...old,phone:e.target.value}))}/></label>
         {method!=="pickup" && <><IranCitySelect province={recipient.province} city={city} className={input} onChange={(province,nextCity)=>{setRecipient(old=>({...old,province}));updateStore(old=>({...old,city:nextCity}));setMethod("post");setCoords(null);}}/>
-          <label>کد پستی ۱۰ رقمی<input required dir="ltr" inputMode="numeric" maxLength={10} className={input} value={recipient.postalCode} onChange={e=>setRecipient(old=>({...old,postalCode:e.target.value}))}/></label>
+          <label>کد پستی ۱۰ رقمی<input required dir="ltr" inputMode="numeric" maxLength={10} className={input} value={recipient.postalCode} onChange={e=>setRecipient(old=>({...old,postalCode:postalDigits(e.target.value)}))} pattern="[0-9]{10}"/></label>
           <label>پلاک / ساختمان<input required maxLength={40} className={input} value={recipient.building} onChange={e=>setRecipient(old=>({...old,building:e.target.value}))}/></label>
           <label>واحد<input maxLength={40} className={input} value={recipient.unit} onChange={e=>setRecipient(old=>({...old,unit:e.target.value}))}/></label>
           <label className="sm:col-span-2">نام خیابان / کوچه<input required maxLength={160} className={input} value={recipient.street} onChange={e=>{setRecipient(old=>({...old,street:e.target.value}));setCoords(null)}}/></label>
           <label className="sm:col-span-2">ادامه نشانی کامل<textarea required rows={3} minLength={6} maxLength={1000} autoComplete="street-address" className={input} value={recipient.address} onChange={e=>setRecipient(old=>({...old,address:e.target.value}))}/></label>
-          <div className="sm:col-span-2"><LocationPicker city={selectedCity} province={recipient.province} street={recipient.street} address={recipient.address} value={coords} onChange={setCoords} label="موقعیت روی نقشه (الزامی؛ ابتدا جستجوی نشانی، سپس تأیید محل)"/></div>
+          <div className="sm:col-span-2"><LocationPicker city={selectedCity} province={recipient.province} street={recipient.street} address={recipient.address} value={coords} onChange={setCoords} label="نقشه اختیاری (برای دقیق‌تر شدن نشانی)"/></div>
         </>}
         {method==="pickup" && <div className="sm:col-span-2 rounded-xl border border-[#7e663b] bg-[#0b0907] p-4 text-sm leading-7"><MapPin className="inline text-[#e8c477]" size={18}/> دریافت حضوری از: {pickupAddress}</div>}
       </section>

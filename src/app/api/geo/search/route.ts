@@ -13,7 +13,7 @@ export async function GET(req:NextRequest){
  if(Date.now()-lastRequest<1200)return NextResponse.json({error:"TRY_LATER"},{status:429,headers:noStore});
  lastRequest=Date.now();
  try{
-  const query=[street,city,province,"Iran"].filter(Boolean).join(", ");
+  const query=[street||address,city,province,"Iran"].filter(Boolean).join(", ");
   const url=new URL("https://nominatim.openstreetmap.org/search");url.searchParams.set("q",query);url.searchParams.set("format","json");url.searchParams.set("limit","1");url.searchParams.set("countrycodes","ir");
   const r=await fetch(url,{headers:{"User-Agent":"MISS-DOOD-AddressPicker/1.0 (website: https://missdoodproject.vercel.app)","Accept-Language":"fa"},signal:AbortSignal.timeout(8000),cache:"no-store"});
   if(!r.ok)return NextResponse.json({error:"GEOCODE_UNAVAILABLE"},{status:503,headers:noStore});

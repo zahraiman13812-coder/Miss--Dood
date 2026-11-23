@@ -5,7 +5,7 @@ import {bad,errorResponse,noStore,sameOrigin} from "@/lib/http";
 export const runtime="nodejs";
 export async function GET(){try{const user=await currentUser();if(user?.role!=="admin")return bad("FORBIDDEN",403);
  const [events,open,stock]=await Promise.all([
- db().query(`SELECT n.id,n.kind,n.title,n.detail,n.href,n.created_at,(r.user_id IS NOT NULL) AS read FROM admin_notifications n LEFT JOIN admin_notification_reads r ON r.notification_id=n.id AND r.user_id=$1 ORDER BY n.created_at DESC LIMIT 40`,[user.id]),
+ db().query(`SELECT n.id,n.kind,n.title,n.detail,n.href,n.created_at,(r.user_id IS NOT NULL) AS read FROM admin_notifications n LEFT JOIN admin_notification_reads r ON r.notification_id=n.id AND r.user_id=$1 WHERE r.notification_id IS NULL ORDER BY n.created_at DESC LIMIT 40`,[user.id]),
  db().query("SELECT count(*)::int AS count FROM orders WHERE status IN ('received','processing')"),
  db().query("SELECT count(*)::int AS count FROM products WHERE active=true AND deleted_at IS NULL AND stock<=5")
  ]);
@@ -18,3 +18,12 @@ export async function PATCH(req:NextRequest){try{if(!sameOrigin(req))return bad(
  await db().query(`INSERT INTO admin_notification_reads(user_id,notification_id) SELECT $1,id FROM admin_notifications WHERE id=$2 ON CONFLICT DO NOTHING`,[user.id,id]);
  return NextResponse.json({ok:true},{headers:noStore});
  }catch(e){return errorResponse(e)}}
+
+/** Clear current notifications for this admin only; other admins keep their own inbox. */
+export async function DELETE(req:NextRequest){try{
+ if(!sameOrigin(req))return bad("CROSS_ORIGIN",403);
+ const user=await currentUser();if(user?.role!=="admin")return bad("FORBIDDEN",403);
+ await db().query(`INSERT INTO admin_notification_reads(user_id,notification_id)
+   SELECT $1,id FROM admin_notifications ON CONFLICT DO NOTHING`,[user.id]);
+ return NextResponse.json({ok:true},{headers:noStore});
+}catch(e){return errorResponse(e)}}

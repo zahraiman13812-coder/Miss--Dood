@@ -10,6 +10,7 @@ import type { Product } from "@/data/mock/latestProducts";
 import ProductCard from "@/features/catalog/ProductCard";
 import LocationPicker from "@/features/account/LocationPicker";
 import StoreLoading from "@/components/ui/StoreLoading";
+import {postalDigits} from "@/lib/postal-code";
 
 type Tab = "overview" | "addresses" | "orders" | "profile" | "recommended";
 type Profile = { id: string; full_name: string; email: string; phone: string };
@@ -172,7 +173,7 @@ export default function AccountPage() {
           </section>
           <section id="account-address-form" className={panel}><div className="mb-5 flex justify-between gap-3"><h2 className="text-xl font-black">{editingId?"ویرایش آدرس":"افزودن آدرس جدید"}</h2>{editingId&&<button onClick={()=>editAddress()} className={outlineButton}><X size={15}/> لغو</button>}</div>
             <form onSubmit={saveAddress} className="grid gap-4 sm:grid-cols-2">
-              {([{key:"title",label:"عنوان آدرس",placeholder:"خانه، محل کار"},{key:"recipient_name",label:"نام گیرنده",placeholder:"نام کامل"},{key:"phone",label:"شماره تماس",placeholder:"09..."},{key:"province",label:"استان",placeholder:"نام استان"},{key:"city",label:"شهر",placeholder:"نام شهر"},{key:"building",label:"پلاک / ساختمان (اختیاری)",placeholder:"پلاک"},{key:"unit",label:"واحد (اختیاری)",placeholder:"واحد"},{key:"postal_code",label:"کد پستی ۱۰ رقمی",placeholder:"کد پستی"}] as const).map(item=><label key={item.key} className="text-sm font-bold">{item.label}<input required={!(["building","unit"].includes(item.key))} value={addressForm[item.key]} onChange={e=>setAddressForm(v=>({...v,[item.key]:e.target.value}))} placeholder={item.placeholder} className={field} maxLength={item.key==="title"?80:item.key==="postal_code"?10:["building","unit"].includes(item.key)?40:120} dir="auto"/></label>)}
+              {([{key:"title",label:"عنوان آدرس",placeholder:"خانه، محل کار"},{key:"recipient_name",label:"نام گیرنده",placeholder:"نام کامل"},{key:"phone",label:"شماره تماس",placeholder:"09..."},{key:"province",label:"استان",placeholder:"نام استان"},{key:"city",label:"شهر",placeholder:"نام شهر"},{key:"building",label:"پلاک / ساختمان (اختیاری)",placeholder:"پلاک"},{key:"unit",label:"واحد (اختیاری)",placeholder:"واحد"},{key:"postal_code",label:"کد پستی ۱۰ رقمی",placeholder:"کد پستی"}] as const).map(item=><label key={item.key} className="text-sm font-bold">{item.label}<input required={!(["building","unit"].includes(item.key))} value={addressForm[item.key]} onChange={e=>setAddressForm(v=>({...v,[item.key]:item.key==="postal_code"?postalDigits(e.target.value):e.target.value}))} inputMode={item.key==="postal_code"?"numeric":undefined} pattern={item.key==="postal_code"?"[0-9]{10}":undefined} placeholder={item.placeholder} className={field} maxLength={item.key==="title"?80:item.key==="postal_code"?10:["building","unit"].includes(item.key)?40:120} dir="auto"/></label>)}
               <label className="sm:col-span-2 text-sm font-bold">نشانی کامل<textarea required minLength={6} maxLength={1000} rows={3} value={addressForm.address} onChange={e=>setAddressForm(v=>({...v,address:e.target.value}))} className={field}/></label>
               <label className="sm:col-span-2 text-sm font-bold">روش ارسال ترجیحی
                 <select value={addressForm.preferred_shipping_method} className={field} onChange={e=>setAddressForm(v=>({...v,preferred_shipping_method:e.target.value as AddressDraft["preferred_shipping_method"]}))}>
@@ -181,7 +182,7 @@ export default function AccountPage() {
                   <option value="pickup" disabled={addressForm.city.replace(/\s/g,"")!=="تهران"}>حضوری (فقط تهران)</option>
                 </select>
               </label>
-              <div className="sm:col-span-2"><LocationPicker city={addressForm.city} value={addressForm.latitude!=null && addressForm.longitude!=null?{lat:addressForm.latitude,lng:addressForm.longitude}:null} onChange={pos=>setAddressForm(v=>({...v,latitude:pos.lat,longitude:pos.lng}))}/></div>
+              <div className="sm:col-span-2"><LocationPicker city={addressForm.city} province={addressForm.province} address={addressForm.address} value={addressForm.latitude!=null && addressForm.longitude!=null?{lat:addressForm.latitude,lng:addressForm.longitude}:null} onChange={pos=>setAddressForm(v=>({...v,latitude:pos.lat,longitude:pos.lng}))}/></div>
               <label className="flex items-center gap-3 text-sm font-bold"><input type="checkbox" checked={addressForm.is_default} onChange={e=>setAddressForm(v=>({...v,is_default:e.target.checked}))}/> آدرس پیش‌فرض من</label>
               <div className="sm:text-left"><button disabled={busy} type="submit" className={goldButton}><Save size={16}/>{busy?"در حال ذخیره…":editingId?"ذخیره ویرایش":"ثبت آدرس"}</button></div>
             </form>

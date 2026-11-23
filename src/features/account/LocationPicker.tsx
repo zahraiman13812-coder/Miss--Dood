@@ -38,6 +38,7 @@ export default function LocationPicker({ value, onChange, label = "انتخاب 
   const [width, setWidth] = useState(600);
   const [searchBusy,setSearchBusy]=useState(false);
   const [searchMessage,setSearchMessage]=useState("");
+  const [alternateMap,setAlternateMap]=useState(false);
   const canvas = useRef<HTMLDivElement>(null);
   const height = 290;
   useEffect(() => {
@@ -66,7 +67,7 @@ export default function LocationPicker({ value, onChange, label = "انتخاب 
   async function searchAddress(){
     if(!city||!province){setSearchMessage("ابتدا استان و شهر را انتخاب کنید.");return;}
     setSearchBusy(true);setSearchMessage("");
-    try{const q=new URLSearchParams({city,province,street,address});const r=await fetch(`/api/geo/search?${q}`,{cache:"no-store"});const d=await r.json();if(!r.ok||typeof d.lat!=="number"||typeof d.lng!=="number")throw Error("نشانی پیدا نشد؛ نقطه را دستی روی نقشه انتخاب کنید.");setCenter({lat:d.lat,lng:d.lng});setZoom(16);setSearchMessage("مکان تقریبی پیدا شد. برای تأیید نهایی حتماً روی محل صحیح در نقشه کلیک کنید.")}catch(e){setSearchMessage(e instanceof Error?e.message:"جستجو انجام نشد")}finally{setSearchBusy(false)}
+    try{const q=new URLSearchParams({city,province,street,address});const r=await fetch(`/api/geo/search?${q}`,{cache:"no-store"});const d=await r.json();if(!r.ok||typeof d.lat!=="number"||typeof d.lng!=="number")throw Error("جستجوی نقشه در دسترس نیست یا نشانی پیدا نشد. می‌توانید فقط نشانی متنی را ثبت کنید.");setCenter({lat:d.lat,lng:d.lng});setZoom(16);setSearchMessage("موقعیت تقریبی پیدا شد. انتخاب نقطه دقیق اختیاری است؛ با کلیک روی نقشه اصلی مختصات ذخیره می‌شود.")}catch(e){setSearchMessage(e instanceof Error?e.message:"جستجو انجام نشد")}finally{setSearchBusy(false)}
   }
   function locateMe(){
     if(!navigator.geolocation) return;
@@ -86,11 +87,17 @@ export default function LocationPicker({ value, onChange, label = "انتخاب 
   const centerPx = mercator(center.lat, center.lng, zoom);
   const pinX = marker ? width / 2 + marker.x - centerPx.x : width / 2;
   const pinY = marker ? height / 2 + marker.y - centerPx.y : height / 2;
+  const area = 0.013;
+  const bbox = [center.lng-area,center.lat-area,center.lng+area,center.lat+area].join(",");
+  const embedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(bbox)}&layer=mapnik${value?`&marker=${encodeURIComponent(`${value.lat},${value.lng}`)}`:""}`;
+  const externalUrl = `https://www.openstreetmap.org/?mlat=${center.lat}&mlon=${center.lng}#map=${zoom}/${center.lat}/${center.lng}`;
   return <div className="space-y-2">
     <p className="flex items-center gap-2 text-sm font-bold text-[#eed3a2]"><MapPin size={17}/>{label}</p>
     <button type="button" disabled={searchBusy || !city || !province} onClick={()=>void searchAddress()} className="min-h-11 rounded-xl border border-[#b49564] px-4 text-sm text-[#e9c484] disabled:opacity-50">{searchBusy?"در حال جستجو...":"یافتن موقعیت تقریبی استان، شهر و خیابان"}</button>
     {searchMessage&&<p role="status" className="text-xs text-[#e5c68f]">{searchMessage}</p>}
-    <div ref={canvas} className="relative isolate h-[290px] w-full select-none overflow-hidden rounded-2xl border border-[#8c6e3d] bg-[#26241d]" dir="ltr">
+    <div className="flex flex-wrap items-center gap-3 text-xs text-[#e5c68f]"><button type="button" onClick={()=>setAlternateMap(v=>!v)} className="rounded-lg border border-[#b49564] px-3 py-2">{alternateMap?"نمایش نقشه انتخاب موقعیت":"نقشه نمایش داده نمی‌شود؟ نسخه جایگزین"}</button><a href={externalUrl} target="_blank" rel="noopener noreferrer" className="underline">باز کردن نقشه در سایت OpenStreetMap</a></div>
+    {alternateMap&&<iframe title="نقشه جایگزین OpenStreetMap" loading="lazy" referrerPolicy="no-referrer" src={embedUrl} className="h-[290px] w-full rounded-2xl border border-[#8c6e3d]"/>}
+    <div ref={canvas} className={`relative isolate h-[290px] w-full select-none overflow-hidden rounded-2xl border border-[#8c6e3d] bg-[#26241d] ${alternateMap?"hidden":""}`} dir="ltr">
       <div className="absolute inset-0 cursor-crosshair" onClick={choose} role="button" tabIndex={0} aria-label="نقشه؛ برای انتخاب مکان روی نقشه کلیک کنید"
         onKeyDown={e => { if(e.key === "Enter" || e.key === " ") {e.preventDefault(); onChange(center);}}}>
         {tiles.map(t => <img key={t.key} src={t.url} alt="" loading="lazy" draggable={false} width={256} height={256}
@@ -105,7 +112,7 @@ export default function LocationPicker({ value, onChange, label = "انتخاب 
       </div>
       <div className="absolute bottom-0 right-0 z-20 bg-white/90 px-2 py-1 text-[10px] text-black"><a target="_blank" rel="noopener noreferrer" href="https://www.openstreetmap.org/copyright" className="underline">© OpenStreetMap contributors</a></div>
     </div>
-    <p className="text-xs leading-6 text-[#c9b78d]">نتیجه جستجو تقریبی است؛ برای تأیید محل حتماً روی نقطه دقیق ساختمان بزنید. نشانی متنی و کد پستی را هم جداگانه وارد کنید. برای جابه‌جایی محدوده نقشه، بزرگ‌نمایی را تغییر دهید یا روی نقطه دیگری بزنید.</p>
+    <p className="text-xs leading-6 text-[#c9b78d]">نتیجه جستجو تقریبی است؛ انتخاب نقطه روی نقشه اختیاری است؛ نشانی کامل و کد پستی معتبر برای ثبت سفارش کافی است. برای ثبت مختصات دقیق می‌توانید روی نقشه اصلی کلیک کنید. برای جابه‌جایی محدوده نقشه، بزرگ‌نمایی را تغییر دهید یا روی نقطه دیگری بزنید.</p>
     {value && <p className="rounded-xl border border-[#5c482c] bg-[#110e0a] p-3 text-xs text-[#edcf8e]" dir="ltr">{value.lat.toFixed(6)}, {value.lng.toFixed(6)}</p>}
   </div>;
 }

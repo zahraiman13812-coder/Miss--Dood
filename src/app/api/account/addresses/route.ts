@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@/lib/session";
 import { db, transaction } from "@/lib/db";
 import { bad, errorResponse, noStore, sameOrigin } from "@/lib/http";
+import {postalDigits} from "@/lib/postal-code";
 
 type Address = {
   id: string; title: string; recipient_name: string; phone: string;
@@ -21,7 +22,7 @@ function parseInput(input: unknown): AddressInput | null {
   const building = typeof data.building === "string" ? data.building.trim() : "";
   const unit = typeof data.unit === "string" ? data.unit.trim() : "";
   const address = typeof data.address === "string" ? data.address.trim() : "";
-  const postal_code = typeof data.postal_code === "string" ? data.postal_code.trim() : "";
+  const postal_code = typeof data.postal_code === "string" ? postalDigits(data.postal_code) : "";
   const preferred_shipping_method = data.preferred_shipping_method ?? "post";
   if (preferred_shipping_method !== "post" && preferred_shipping_method !== "express" && preferred_shipping_method !== "pickup") return null;
   if (preferred_shipping_method !== "post" && city.replace(/\s/g,"") !== "تهران") return null;
@@ -32,8 +33,7 @@ function parseInput(input: unknown): AddressInput | null {
   if (!coordsValid) return null;
   if (!title || title.length > 80 || !recipient_name || recipient_name.length > 120 ||
     !/^\+?[0-9۰-۹٠-٩ \-]{8,25}$/.test(phone) || !city || city.length > 120 || !province || province.length > 80 || building.length > 40 || unit.length > 40 ||
-    address.length < 6 || address.length > 1000 || postal_code.length > 20 ||
-    (postal_code.length > 0 && !/^[0-9۰-۹٠-٩\- ]+$/.test(postal_code))) return null;
+    address.length < 6 || address.length > 1000 || !/^\d{10}$/.test(postal_code)) return null;
   return { title, recipient_name, phone, city, province, building, unit, address, postal_code, is_default: data.is_default === true, latitude: latitude as number|null, longitude: longitude as number|null, preferred_shipping_method };
 }
 
