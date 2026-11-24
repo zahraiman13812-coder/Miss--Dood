@@ -1,43 +1,45 @@
-
 import "server-only";
-import nodemailer from "nodemailer";
 
-export async function sendOtpEmail(
-  to: string,
-  code: string
-): Promise<void> {
-  const user = process.env.GMAIL_USER?.trim();
-  const password = process.env.GMAIL_APP_PASSWORD
-    ?.replace(/\s/g, "");
+/** Sends one-time login codes through Resend; the API key stays server-side. */
+export async function sendOtpEmail(to: string, code: string): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const from = process.env.EMAIL_FROM?.trim();
 
-  if (!user || !password) {
-    throw new Error("EMAIL_NOT_CONFIGURED");
+  if (!apiKey || !from) throw new Error("EMAIL_NOT_CONFIGURED");
+  if (!/^(?:[^<>\r\n]+\s+<[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+>|[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+)$/.test(from)) {
+    throw new Error("RESEND_SENDER_INVALID");
   }
 
-  const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-    auth: {
-      user,
-      pass: password,
-    },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
-  });
+  let response: Response;
+  try {
+    response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from,
+        to: [to],
+        subject: "کد تأیید ورود به MISS DOOD",
+        text: `کد تأیید شما: ${code}\nاین کد تا ۱۰ دقیقه معتبر است.\nاگر درخواست ورود نداده‌اید، این پیام را نادیده بگیرید.`,
+      }),
+      signal: AbortSignal.timeout(15000),
+      cache: "no-store",
+    });
+  } catch {
+    // Do not expose the OTP, email address, secret key, or provider error details.
+    throw new Error("EMAIL_SEND_FAILED");
+  }
 
-  const info = await transporter.sendMail({
-    from: `"MISS DOOD" <${user}>`,
-    to,
-    subject: "کد تأیید ورود به MISS DOOD",
-    text:
-      `کد تأیید شما: ${code}\n` +
-      "این کد تا ۱۰ دقیقه معتبر است.\n" +
-      "اگر درخواست ورود نداده‌اید، این پیام را نادیده بگیرید.",
-  });
+  if (!response.ok) {
+    if (response.status === 401 || response.status === 403) throw new Error("RESEND_ACCESS_DENIED");
+    if (response.status === 422) throw new Error("RESEND_SENDER_INVALID");
+    throw new Error("EMAIL_SEND_FAILED");
+  }
 
-  if (!info.accepted.includes(to)) {
-    throw new Error("EMAIL_DELIVERY_FAILED");
+  const result: unknown = await response.json().catch(() => null);
+  if (!result || typeof result !== "object" || !("id" in result) || typeof result.id !== "string") {
+    throw new Error("EMAIL_SEND_FAILED");
   }
 }
